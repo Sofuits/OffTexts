@@ -18,7 +18,14 @@ import type {
   ProfileRepository,
   ReviewRepository,
 } from '@/domain/repositories';
-import { GetScheduledMeets, RequestMeet, SignIn, SubmitReview } from '@/domain/usecases';
+import {
+  GetScheduledMeets,
+  RequestMeet,
+  SignIn,
+  SignInWithGoogle,
+  SignOut,
+  SubmitReview,
+} from '@/domain/usecases';
 import { NoopAnalytics, type Analytics } from '@/infrastructure/analytics';
 import { ConsoleLogger, SentryLogger, type Logger } from '@/infrastructure/logging';
 import {
@@ -39,6 +46,7 @@ import {
   type TypedSupabaseClient,
 } from '@/infrastructure/supabase';
 import { env } from '@/shared/config';
+import { KEYS_TO_CLEAR_ON_SIGN_OUT } from '@/shared/constants/storageKeys';
 
 /**
  * THE COMPOSITION ROOT.
@@ -67,6 +75,8 @@ export type Container = {
   };
   useCases: {
     signIn: SignIn;
+    signInWithGoogle: SignInWithGoogle;
+    signOut: SignOut;
     getScheduledMeets: GetScheduledMeets;
     requestMeet: RequestMeet;
     submitReview: SubmitReview;
@@ -162,6 +172,12 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
     repositories,
     useCases: {
       signIn: new SignIn(repositories.auth),
+      signInWithGoogle: new SignInWithGoogle(repositories.auth),
+      // Signing out must also drop whatever the previous member left on disk,
+      // or the next person to sign in on this phone sees their cached profile.
+      signOut: new SignOut(repositories.auth, async () => {
+        await Promise.all(KEYS_TO_CLEAR_ON_SIGN_OUT.map((key) => store.removeItem(key)));
+      }),
       getScheduledMeets: new GetScheduledMeets(repositories.meets),
       requestMeet: new RequestMeet(repositories.meets),
       submitReview: new SubmitReview(repositories.reviews),

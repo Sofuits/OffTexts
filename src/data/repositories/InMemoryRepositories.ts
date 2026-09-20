@@ -18,6 +18,7 @@ import {
   type MeetRepository,
   type MeetRequest,
   type NewReview,
+  type OAuthProvider,
   type ProfileRepository,
   type ProfileUpdate,
   type Result,
@@ -186,13 +187,18 @@ export class InMemoryReviewRepository implements ReviewRepository {
 /**
  * Auth with nobody really signed in.
  *
- * It reports a signed-in session immediately so the app is usable before the
- * sign-in screen exists (stage 2). `signInWithPassword` accepts any credentials
- * — which is precisely why this class must never be reachable in a build that
- * has Supabase configured. The composition root is what guarantees that.
+ * It starts SIGNED OUT, so the sign-in screen is the first thing a developer
+ * sees and the whole gated flow is exercised without a backend. Any sign-in
+ * attempt succeeds — which is precisely why this class must never be reachable
+ * in a build that has Supabase configured. The composition root guarantees
+ * that, and a test asserts it.
+ *
+ * The delay on `signInWithOAuth` stands in for the browser round trip, so the
+ * button's loading state is visible during development instead of being a
+ * frame long.
  */
 export class InMemoryAuthRepository implements AuthRepository {
-  private session: Session | null = SEED_SESSION;
+  private session: Session | null = null;
   private readonly listeners = new Set<(state: AuthState) => void>();
 
   private emit(): void {
@@ -212,6 +218,13 @@ export class InMemoryAuthRepository implements AuthRepository {
       this.session ? { status: 'signedIn', session: this.session } : { status: 'signedOut' },
     );
     return () => this.listeners.delete(listener);
+  }
+
+  async signInWithOAuth(_provider: OAuthProvider): Promise<Result<Session | null>> {
+    await delay(700);
+    this.session = SEED_SESSION;
+    this.emit();
+    return success(this.session);
   }
 
   async signInWithPassword(credentials: Credentials): Promise<Result<Session>> {

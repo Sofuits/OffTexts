@@ -287,6 +287,97 @@ retry policy doing exactly what it was told to.
 
 ---
 
+## 6a. Google sign-in — configuration
+
+The code is complete and runs today against the in-memory repository: the
+sign-in screen, the auth gate and sign-out all work with no backend. Making it
+sign in with a **real** Google account needs three things configured, in this
+order. The order matters — each step needs an output from the one before.
+
+### Step 1 — Supabase project
+
+1. Create a project at supabase.com. **Pick the Mumbai region** — lowest latency
+   for Pune members.
+2. Project settings → API → copy the **Project URL** and the **anon public key**.
+3. Put them in `.env`:
+
+   ```bash
+   EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhb...
+   ```
+
+The moment both are present, the composition root wires the Supabase
+repositories instead of the in-memory ones. Nothing else changes.
+
+### Step 2 — Google Cloud OAuth clients
+
+Google Cloud Console → APIs & Services → Credentials → Create credentials →
+OAuth client ID. You need **three** clients:
+
+| Type                | Needed for      | Notes                                                                     |
+| ------------------- | --------------- | ------------------------------------------------------------------------- |
+| **Web application** | Supabase itself | Authorised redirect URI: `https://<project>.supabase.co/auth/v1/callback` |
+| **Android**         | the Android app | Needs the package name `com.offtexts.app` and the **SHA-1 fingerprint**   |
+| **iOS**             | the iOS app     | Needs the bundle ID `com.offtexts.app`                                    |
+
+The SHA-1 comes from the build credentials, which is why EAS has to be set up
+first:
+
+```bash
+eas credentials
+```
+
+Choose Android → the build profile → and read the SHA-1 fingerprint from the
+keystore. **Use the EAS-managed keystore's fingerprint, not a local debug one**
+— the debug key changes per machine and Google sign-in then works for one
+developer and nobody else.
+
+### Step 3 — Connect them in Supabase
+
+Supabase dashboard → Authentication → Providers → Google → enable, and paste the
+**Web** client ID and secret (not the Android or iOS ones).
+
+Then Authentication → URL Configuration → Redirect URLs, add:
+
+```
+offtexts://auth/callback
+```
+
+That string is built by `expo-linking` from `scheme: 'offtexts'` in
+`app.config.ts`. Change the scheme and this must change with it.
+
+### Step 4 — A development build
+
+**Google sign-in does not work in Expo Go.** Expo Go owns the `exp://` URL
+scheme, so it cannot hand a redirect to `offtexts://` back to our code. This is
+not a bug to work around — it is how custom schemes work.
+
+```bash
+npm install -g eas-cli
+eas login
+eas build:configure
+eas build --profile development --platform android
+```
+
+Install the resulting build on your phone once. After that the day-to-day
+workflow is identical to Expo Go: `npm start`, scan, reload.
+
+### Why OAuth uses the system browser, not a WebView
+
+`openAuthSessionAsync` opens SFSafariViewController on iOS and Custom Tabs on
+Android. **Google blocks OAuth inside embedded WebViews** — the error is
+`disallowed_useragent` — because an app hosting a WebView can read the password
+typed into it. Anyone "simplifying" this to a `WebView` will find sign-in stops
+working.
+
+### Testing it without a real Google account
+
+Leave `.env` blank. The in-memory auth repository signs you in after a short
+delay, so the screens, the gate and sign-out can all be worked on and tested
+with no Google or Supabase account at all.
+
+---
+
 ## 7. Architecture — the three rules
 
 Full reasoning is in [ARCHITECTURE.md](ARCHITECTURE.md). The three that will

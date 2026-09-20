@@ -17,4 +17,5 @@
 export { GetScheduledMeets, type ScheduledMeets } from './GetScheduledMeets';
 export { RequestMeet } from './RequestMeet';
 export { SignIn } from './SignIn';
+export { SignInWithGoogle, SignOut, type SignInOutcome } from './SignInWithGoogle';
 export { SubmitReview } from './SubmitReview';

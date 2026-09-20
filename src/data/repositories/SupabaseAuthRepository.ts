@@ -6,10 +6,15 @@ import {
   AppError,
   type AuthRepository,
   type Credentials,
+  type OAuthProvider,
   type Result,
 } from '@/domain/repositories';
 import type { Logger } from '@/infrastructure/logging';
-import { classifySupabaseError, type TypedSupabaseClient } from '@/infrastructure/supabase';
+import {
+  classifySupabaseError,
+  runOAuthFlow,
+  type TypedSupabaseClient,
+} from '@/infrastructure/supabase';
 
 /**
  * Authentication on Supabase.
@@ -63,6 +68,35 @@ export class SupabaseAuthRepository implements AuthRepository {
     });
 
     return () => data.subscription.unsubscribe();
+  }
+
+  /**
+   * Google sign-in.
+   *
+   * Resolves with `null` when the member backed out of the browser. That is a
+   * deliberate third outcome alongside success and failure: showing "sign-in
+   * failed" to someone who pressed cancel is wrong, and collapsing it into an
+   * error would make that unavoidable at the call site.
+   *
+   * The session is not read back here. `setSession` inside the flow fires
+   * `onAuthStateChange`, which `observeAuthState` is already listening to, so
+   * the app updates through the same path as a restored session or a sign-out
+   * on another device — one code path rather than two.
+   */
+  async signInWithOAuth(provider: OAuthProvider): Promise<Result<Session | null>> {
+    const result = await attempt(async () => {
+      const outcome = await runOAuthFlow(this.client, provider);
+      if (outcome.status === 'cancelled') {
+        this.logger.info('OAuth sign-in cancelled by the member', { provider });
+        return null;
+      }
+
+      const { data, error } = await this.client.auth.getSession();
+      if (error) throw error;
+      return this.toSession(data.session);
+    }, classifySupabaseError);
+
+    return result;
   }
 
   async signInWithPassword(credentials: Credentials): Promise<Result<Session>> {

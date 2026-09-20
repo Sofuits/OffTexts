@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import {
   AppText,
@@ -14,6 +14,7 @@ import {
   Spacer,
 } from '@/presentation/components';
 import { MEET_INTENT_LABELS } from '@/domain/entities';
+import { useUseCases } from '@/app/di';
 import { useMyProfile } from '@/presentation/hooks';
 import { useTheme } from '@/presentation/hooks/useTheme';
 import type { BottomTabScreenPropsFor } from '@/app/navigation/types';
@@ -31,7 +32,29 @@ const VERIFICATION_TONE = {
 export function ProfileScreen({ navigation }: Props): React.JSX.Element {
   const theme = useTheme();
   const profile = useMyProfile();
+  const { signOut } = useUseCases();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
   const goToEdit = useCallback(() => navigation.navigate('EditProfile'), [navigation]);
+
+  /**
+   * Signing out does not navigate. The auth subscription changes the state and
+   * RootNavigator swaps the branch, which unmounts this screen — so there is
+   * nothing to push and no risk of leaving a signed-in screen behind.
+   */
+  const onSignOut = useCallback(() => {
+    Alert.alert('Sign out?', 'You will need to sign in again to see your meets.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: () => {
+          setIsSigningOut(true);
+          void signOut.execute().finally(() => setIsSigningOut(false));
+        },
+      },
+    ]);
+  }, [signOut]);
 
   return (
     <ScreenContainer testID="screen-profile">
@@ -161,6 +184,16 @@ export function ProfileScreen({ navigation }: Props): React.JSX.Element {
                 <Badge label={person.verification} tone={VERIFICATION_TONE[person.verification]} />
               </View>
             </View>
+
+            <Spacer size={32} />
+            <Button
+              label="Sign out"
+              variant="outline"
+              fullWidth
+              loading={isSigningOut}
+              onPress={onSignOut}
+              testID="button-sign-out"
+            />
           </>
         )}
       </QueryBoundary>
