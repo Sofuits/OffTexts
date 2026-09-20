@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "expo.vscode-expo-tools",
+    "editorconfig.editorconfig",
+    "bradlc.vscode-tailwindcss"
+  ],
+  "unwantedRecommendations": ["hookyqr.beautify"]
+}
