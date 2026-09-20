@@ -16,9 +16,16 @@
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
 export type ProfileRow = {
+  /**
+   * The same value as `auth.users.id`.
+   *
+   * One identity, not two. An earlier draft had a separate `user_id`, which
+   * meant `meets.requester_id` held an auth id while `recipient_id` held a
+   * profile id — two different values for the same person, so a meet could
+   * never match its own participants. Collapsing them also makes every RLS
+   * policy a direct `auth.uid() = id` comparison instead of a subquery.
+   */
   id: string;
-  /** FK to auth.users. */
-  user_id: string;
   name: string;
   age: number | null;
   headline: string;
@@ -34,6 +41,7 @@ export type ProfileRow = {
 
 export type MeetRow = {
   id: string;
+  /** profiles.id — which is also the auth user id. */
   requester_id: string;
   recipient_id: string;
   venue_name: string;
@@ -57,8 +65,10 @@ export type Database = {
     Tables: {
       profiles: {
         Row: ProfileRow;
-        Insert: Omit<ProfileRow, 'id' | 'created_at' | 'updated_at'> & { id?: string };
-        Update: Partial<Omit<ProfileRow, 'id' | 'user_id' | 'created_at'>>;
+        // `id` is required on insert: it must equal auth.uid(), and the RLS
+        // policy rejects anything else.
+        Insert: Omit<ProfileRow, 'created_at' | 'updated_at'>;
+        Update: Partial<Omit<ProfileRow, 'id' | 'created_at'>>;
         Relationships: [];
       };
       meets: {

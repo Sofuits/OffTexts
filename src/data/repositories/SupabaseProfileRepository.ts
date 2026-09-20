@@ -56,7 +56,7 @@ export class SupabaseProfileRepository implements ProfileRepository {
       const { data, error } = await this.client
         .from('profiles')
         .select('*')
-        .eq('user_id', userId)
+        .eq('id', userId)
         .single();
 
       if (error) throw error;
@@ -95,7 +95,7 @@ export class SupabaseProfileRepository implements ProfileRepository {
       const { data, error } = await this.client
         .from('profiles')
         .update(toProfileUpdateRow(update))
-        .eq('user_id', userId)
+        .eq('id', userId)
         .select('*')
         .single();
 

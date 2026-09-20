@@ -37,7 +37,7 @@ export class SupabaseDiscoverRepository implements DiscoverRepository {
         .from('profiles')
         .select('*')
         .eq('verification', 'verified')
-        .neq('user_id', userId)
+        .neq('id', userId)
         .order('created_at', { ascending: false })
         // One extra row: if it comes back, there is another page.
         .limit(limit + 1);

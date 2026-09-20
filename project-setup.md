@@ -296,10 +296,15 @@ order. The order matters — each step needs an output from the one before.
 
 ### Step 1 — Supabase project
 
+Full instructions, including the SQL to run and how to verify RLS is actually
+working, are in **[supabase/README.md](supabase/README.md)**. In short:
+
 1. Create a project at supabase.com. **Pick the Mumbai region** — lowest latency
    for Pune members.
-2. Project settings → API → copy the **Project URL** and the **anon public key**.
-3. Put them in `.env`:
+2. SQL Editor → run `supabase/migrations/0001_initial_schema.sql`, then
+   `0002_row_level_security.sql`. **In that order.**
+3. Project settings → API → copy the **Project URL** and the **anon public key**.
+4. Put them in `.env`:
 
    ```bash
    EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co

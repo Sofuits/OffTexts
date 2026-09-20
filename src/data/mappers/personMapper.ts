@@ -29,6 +29,7 @@ const toVerification = (value: string): VerificationStatus =>
 
 export function toPerson(row: ProfileRow): Person {
   return {
+    // Also the auth user id — profiles are keyed by it. See ProfileRow.
     id: row.id,
     name: row.name,
     // The column is nullable; the entity says "absent", not "null".
