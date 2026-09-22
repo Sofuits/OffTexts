@@ -20,7 +20,10 @@ module.exports = defineConfig([
   expoConfig,
   prettierConfig,
   {
-    ignores: ['dist/*', 'node_modules/*', '.expo/*', 'android/*', 'ios/*', 'coverage/*'],
+    // `admin/` is a separate Vite app with its own tsconfig, its own lib and
+    // jsx settings, and a browser target. Linting it with the React Native
+    // config here would be linting it against the wrong platform.
+    ignores: ['dist/*', 'node_modules/*', '.expo/*', 'android/*', 'ios/*', 'coverage/*', 'admin/*'],
   },
 
   /* ---------------------------------------------------------------- general */

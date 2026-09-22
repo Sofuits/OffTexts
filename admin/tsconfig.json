@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Must match the app's tsconfig.json, which sets this false deliberately.
+       This project compiles the app's own domain/ and data/ sources, so holding
+       them to a stricter rule than they were written under produces errors in
+       files this project does not own and cannot fix. One shared standard, set
+       in one place. */
+    "exactOptionalPropertyTypes": false,
+
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+
+    "paths": {
+      "@admin/*": ["./src/*"],
+      "@/*": ["../src/*"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

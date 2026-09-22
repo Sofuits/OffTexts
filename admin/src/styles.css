@@ -1,0 +1,364 @@
+/*
+ * The portal's own styling.
+ *
+ * Colours, spacing, radii and type sizes come from the app's design tokens,
+ * injected as CSS custom properties at startup (src/lib/theme.ts). Nothing
+ * below hardcodes a brand colour — if the palette changes in
+ * src/shared/theme/colors.ts, this follows.
+ *
+ * Layout and components are the portal's own, because an admin table is not a
+ * profile card and sharing UI between them would serve neither.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--c-background);
+  color: var(--c-text-primary);
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--c-primary);
+}
+
+/* ------------------------------------------------------------------ shell -- */
+
+.shell {
+  display: grid;
+  min-height: 100%;
+  grid-template-rows: auto 1fr;
+}
+
+@media (min-width: 900px) {
+  .shell {
+    grid-template-columns: 232px 1fr;
+    grid-template-rows: 1fr;
+  }
+}
+
+.sidebar {
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border);
+  padding: var(--s-16) var(--s-20);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-16);
+}
+
+@media (min-width: 900px) {
+  .sidebar {
+    border-bottom: 0;
+    border-right: 1px solid var(--c-border);
+    padding: var(--s-24) var(--s-20);
+  }
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-8);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.brand span {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Horizontal, scrollable strip on a phone; a column on a laptop. One nav, not
+   two, so there is no hidden menu whose state can disagree with the visible one. */
+.nav {
+  display: flex;
+  gap: var(--s-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .nav {
+    flex-direction: column;
+    overflow: visible;
+  }
+}
+
+.nav a {
+  display: block;
+  padding: var(--s-8) var(--s-12);
+  border-radius: var(--r-md);
+  color: var(--c-text-secondary);
+  text-decoration: none;
+  font-size: 14.5px;
+  white-space: nowrap;
+}
+
+.nav a:hover {
+  background: var(--c-inset);
+  color: var(--c-text-primary);
+}
+
+.nav a.active {
+  background: var(--c-inset);
+  color: var(--c-primary);
+  font-weight: 600;
+}
+
+.who {
+  margin-top: auto;
+  font-size: 13px;
+  color: var(--c-text-disabled);
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .who {
+    display: block;
+  }
+}
+
+.main {
+  padding: var(--s-20);
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .main {
+    padding: var(--s-32) var(--s-32) var(--s-64);
+  }
+}
+
+/* ------------------------------------------------------------------ type -- */
+
+h1 {
+  font-size: 24px;
+  margin: 0 0 var(--s-4);
+  letter-spacing: -0.01em;
+}
+
+.lede {
+  color: var(--c-text-secondary);
+  margin: 0 0 var(--s-24);
+  max-width: 62ch;
+}
+
+h2 {
+  font-size: 17px;
+  margin: var(--s-32) 0 var(--s-12);
+}
+
+/* ------------------------------------------------------------------ bits -- */
+
+.row {
+  display: flex;
+  gap: var(--s-8);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.card {
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+  padding: var(--s-16);
+}
+
+.tiles {
+  display: grid;
+  gap: var(--s-12);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.tile b {
+  display: block;
+  font-size: 28px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.tile span {
+  font-size: 13px;
+  color: var(--c-text-secondary);
+}
+
+input,
+select {
+  background: var(--c-inset);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  color: var(--c-text-primary);
+  padding: 9px 12px;
+  font: inherit;
+  min-width: 0;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible,
+.nav a:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 2px;
+}
+
+button {
+  background: var(--c-primary);
+  color: var(--c-text-on-primary);
+  border: 0;
+  border-radius: var(--r-md);
+  padding: 9px 14px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--c-text-secondary);
+  border: 1px solid var(--c-border);
+  font-weight: 500;
+}
+
+/* ----------------------------------------------------------------- table -- */
+
+/* The table scrolls inside its own container, so the page never scrolls
+   sideways on a phone. */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-lg);
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+  background: var(--c-card);
+}
+
+th,
+td {
+  text-align: left;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--c-border);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-text-disabled);
+  background: var(--c-inset);
+  font-weight: 600;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+td.wrap {
+  white-space: normal;
+  min-width: 260px;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: var(--r-full);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid currentColor;
+}
+
+.pill.verified {
+  color: var(--c-success);
+}
+.pill.pending {
+  color: var(--c-warning);
+}
+.pill.rejected,
+.pill.cancelled {
+  color: var(--c-danger);
+}
+.pill.unverified,
+.pill.completed,
+.pill.confirmed {
+  color: var(--c-text-secondary);
+}
+
+/* ---------------------------------------------------------------- states -- */
+
+.state {
+  padding: var(--s-32) var(--s-20);
+  text-align: center;
+  color: var(--c-text-secondary);
+  border: 1px dashed var(--c-border);
+  border-radius: var(--r-lg);
+}
+
+.state h3 {
+  margin: 0 0 var(--s-8);
+  color: var(--c-text-primary);
+  font-size: 16px;
+}
+
+.state p {
+  margin: 0 auto;
+  max-width: 48ch;
+}
+
+.error {
+  color: var(--c-danger);
+}
+
+/* ------------------------------------------------------------- sign in --- */
+
+.signin {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: var(--s-20);
+}
+
+.signin form {
+  width: min(380px, 100%);
+  display: grid;
+  gap: var(--s-12);
+}
+
+.signin label {
+  display: grid;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--c-text-secondary);
+}

@@ -6,3 +6,8 @@ android
 ios
 coverage
 package-lock.json
+
+# Build output. The admin source itself IS formatted, so one style holds
+# across the repository.
+admin/dist
+admin/node_modules

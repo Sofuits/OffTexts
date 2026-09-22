@@ -2,6 +2,10 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+
+    /* Beyond `strict`: these catch the mistakes that actually reach production
+       in a React Native codebase — an array index assumed to exist, an unused
+       import left behind by a refactor, a switch that silently falls through. */
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
@@ -11,11 +15,20 @@
     "forceConsistentCasingInFileNames": true,
     "verbatimModuleSyntax": false,
     "skipLibCheck": true,
+
+    /* Jest's globals (describe, it, expect) are ambient, and the architecture
+       test reads the source tree with node:fs. Without both, every test file is
+       a wall of "Cannot find name". */
     "types": ["jest", "node"],
+
+    /* Absolute imports. Paths are resolved relative to this file — `baseUrl`
+       is deprecated in TypeScript 6 and is not needed for them. Expo's Metro
+       config reads the same mapping, so `@/components` resolves at build time
+       as well as in the editor. */
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", "dist", ".expo", "babel.config.js", "coverage"]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  "exclude": ["node_modules", "dist", ".expo", "babel.config.js", "coverage", "admin"]
 }
