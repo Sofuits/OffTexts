@@ -118,21 +118,16 @@ export function SignInScreen(): React.JSX.Element {
           </>
         ) : null}
 
-        <Spacer size={20} />
-        <AppText variant="caption" color="textDisabled" align="center">
-          By continuing you agree to our terms and privacy notice. You must be 18 or older.
-        </AppText>
-
         {env.isProduction ? null : (
           <View testID="dev-sign-in">
-            <Spacer size={20} />
+            <Spacer size={16} />
             <Pressable
               onPress={() => setShowDevForm((open) => !open)}
               accessibilityRole="button"
-              hitSlop={8}
+              hitSlop={12}
               testID="button-toggle-dev-sign-in"
             >
-              <AppText variant="caption" color="textSecondary" align="center">
+              <AppText variant="body" color="primary" align="center">
                 {showDevForm ? 'Hide developer sign-in' : 'Developer sign-in'}
               </AppText>
             </Pressable>
@@ -181,6 +176,11 @@ export function SignInScreen(): React.JSX.Element {
             ) : null}
           </View>
         )}
+
+        <Spacer size={20} />
+        <AppText variant="caption" color="textDisabled" align="center">
+          By continuing you agree to our terms and privacy notice. You must be 18 or older.
+        </AppText>
       </View>
     </ScreenContainer>
   );
