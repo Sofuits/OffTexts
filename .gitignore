@@ -35,12 +35,14 @@ yarn-error.*
 *.log
 
 # Editors and OS
+#
+# Editor settings stay local. `.editorconfig` is committed and is enough to keep
+# indentation, charset and line endings consistent for everyone, whatever editor
+# they use; beyond that, nobody's editor configuration belongs to the project.
 .DS_Store
 *.pem
 .idea/
-.vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
+.vscode/
 
 # Jest
 coverage/

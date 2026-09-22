@@ -92,7 +92,7 @@ Slower to start, works anywhere.
 | `npm run typecheck`               | `tsc --noEmit`                          |
 | `npm run lint`                    | ESLint, **failing on any warning**      |
 | `npm run format`                  | Prettier, writing changes               |
-| `npm test`                        | Jest — 33 tests, no network, ~3 seconds |
+| `npm test`                        | Jest — 42 tests, no network, ~7 seconds |
 | **`npm run verify`**              | **All four. Run before every push.**    |
 
 `npm run verify` is the gate. If it passes locally it will pass in review.
@@ -238,9 +238,15 @@ tsconfig.json#include property has been updated`), and a VS Code "format on
 save" using the built-in JSON formatter rather than Prettier does the same.
 
 **Fix** — run `npm run format` before committing, which puts Prettier back in
-charge. If it keeps happening, check that
-**Settings → Editor: Default Formatter** is set to **Prettier**, which
-`.vscode/settings.json` already specifies.
+charge. If it keeps happening, set **Settings → Editor: Default Formatter** to
+**Prettier** in your own editor.
+
+Editor settings are not committed — `.vscode/` is ignored — so this is a setting
+each person turns on once for themselves. `.editorconfig` **is** committed and
+covers indentation, charset and line endings for any editor that reads it, but
+it cannot choose your formatter for you. Running `npm run format` before every
+commit makes the point moot either way, which is why that is the habit to build
+rather than a particular editor configuration.
 
 **Do not** commit the reformatted version — it fails `npm run format:check` and
 therefore fails `npm run verify`.
@@ -285,6 +291,33 @@ retry policy doing exactly what it was told to.
 
 **Fix** — `"types": ["jest", "node"]`, and `@types/node` as a dev dependency.
 
+### 6.9 This guide originally asked for three OAuth clients
+
+**Cause** — an earlier version of section 6a said Google sign-in needs three
+Google Cloud OAuth clients (Web, Android, iOS) and that the Android one needs
+the SHA-1 fingerprint of the EAS-managed keystore. That is correct advice for
+the **native** Google Sign-In SDK, which is what most tutorials describe. It is
+not correct for the flow this app implements.
+
+We use the browser redirect flow. Google issues its response to
+`https://<project-ref>.supabase.co/auth/v1/callback`, a web address, and never
+interacts with the app binary — so there is nothing for it to identify by
+package name or signing certificate.
+
+**Fix** — section 6a now specifies one Web application client and states why,
+with a table contrasting the two flows.
+
+**What to take from it** — following that section as written would have meant
+setting up an EAS account and generating build credentials before a single
+sign-in could be tested, for no reason. When a setup step exists only to satisfy
+another system, check what that system actually receives. If Google never sees
+the APK, it cannot be checking the APK's fingerprint.
+
+If the app ever moves to the native SDK — worth doing, since it replaces a
+browser hop with the OS account picker — the three-client requirement comes back
+and the SHA-1 becomes real. Both the EAS keystore fingerprint and any local
+debug key would then need registering, or sign-in works for one developer only.
+
 ---
 
 ## 6a. Google sign-in — configuration
@@ -314,33 +347,52 @@ working, are in **[supabase/README.md](supabase/README.md)**. In short:
 The moment both are present, the composition root wires the Supabase
 repositories instead of the in-memory ones. Nothing else changes.
 
-### Step 2 — Google Cloud OAuth clients
+### Step 2 — One Google Cloud OAuth client
 
-Google Cloud Console → APIs & Services → Credentials → Create credentials →
-OAuth client ID. You need **three** clients:
+**A single Web application client. Not three.**
 
-| Type                | Needed for      | Notes                                                                     |
-| ------------------- | --------------- | ------------------------------------------------------------------------- |
-| **Web application** | Supabase itself | Authorised redirect URI: `https://<project>.supabase.co/auth/v1/callback` |
-| **Android**         | the Android app | Needs the package name `com.offtexts.app` and the **SHA-1 fingerprint**   |
-| **iOS**             | the iOS app     | Needs the bundle ID `com.offtexts.app`                                    |
+This is worth being precise about, because most tutorials say three and they are
+answering a different question. There are two ways to sign in with Google from a
+React Native app, and they need different things:
 
-The SHA-1 comes from the build credentials, which is why EAS has to be set up
-first:
+| Flow                                                                     | What Google sees | Clients needed                               |
+| ------------------------------------------------------------------------ | ---------------- | -------------------------------------------- |
+| **Browser redirect** — `signInWithOAuth` + `openAuthSessionAsync` (ours) | a web request    | **Web application only**                     |
+| Native SDK — `@react-native-google-signin` + `signInWithIdToken`         | a native app     | Web **and** Android (with SHA-1) **and** iOS |
 
-```bash
-eas credentials
-```
+We use the first. The phone opens a browser, Google redirects to
+`https://<project>.supabase.co/auth/v1/callback`, Supabase exchanges the code
+and redirects on to `offtexts://auth/callback`. Google never talks to the app
+binary, so it has nothing to identify by package name or signing certificate —
+which is exactly why no Android or iOS client is involved, and why **no SHA-1
+fingerprint and no EAS keystore are needed for sign-in to work**.
 
-Choose Android → the build profile → and read the SHA-1 fingerprint from the
-keystore. **Use the EAS-managed keystore's fingerprint, not a local debug one**
-— the debug key changes per machine and Google sign-in then works for one
-developer and nobody else.
+Google Cloud Console → **Google Auth Platform** (formerly "APIs & Services →
+OAuth consent screen"; Google reorganised it into Overview / Branding /
+Audience / Clients / Data Access / Verification Center).
+
+1. **Branding** — app name `Offtexts`, a support email, and a developer contact
+   email.
+2. **Audience** — **External**. Then **Publish app** to move it out of
+   `Testing`. In `Testing` only accounts on an explicit list can sign in, capped
+   at 100.
+3. **Data Access** — leave it at the default `openid`, `email`, `profile`. These
+   are **non-sensitive scopes**, and an app using only non-sensitive scopes does
+   not need to pass Google's verification review before publishing. Add anything
+   beyond them and that stops being true.
+4. **Clients** → Create client → **Web application**. Authorised redirect URI:
+
+   ```
+   https://<project-ref>.supabase.co/auth/v1/callback
+   ```
+
+   Nothing in "Authorised JavaScript origins" — that field is for a browser SPA
+   calling Google directly, which is not what happens here.
 
 ### Step 3 — Connect them in Supabase
 
-Supabase dashboard → Authentication → Providers → Google → enable, and paste the
-**Web** client ID and secret (not the Android or iOS ones).
+Supabase dashboard → Authentication → Sign In / Providers → Google → enable, and
+paste the Web client ID and secret.
 
 Then Authentication → URL Configuration → Redirect URLs, add:
 
