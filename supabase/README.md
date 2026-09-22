@@ -7,30 +7,59 @@ migrations/0001_initial_schema.sql        tables, enums, indexes, triggers, stor
 migrations/0002_row_level_security.sql    the policies — not optional
 ```
 
+## The project
+
+|              |                                   |
+| ------------ | --------------------------------- |
+| Organisation | Sofuits                           |
+| Project      | OffTexts                          |
+| Reference    | `dxggtnpnyxqjyarxvczh`            |
+| Region       | South Asia (Mumbai), `ap-south-1` |
+
+The reference is not a secret — it is half of the URL that ships inside the app
+bundle. What protects the data is Row Level Security, not obscurity.
+
 ## Setting it up
 
-1. Create a project at [supabase.com](https://supabase.com). **Pick the Mumbai
-   region** — lowest latency for members in Pune.
-2. Dashboard → **SQL Editor** → New query → paste `0001_initial_schema.sql` →
-   Run.
-3. Same again with `0002_row_level_security.sql`. **The order matters** — the
-   policies reference tables created by the first file.
-4. Settings → API → copy the **Project URL** and the **anon public key** into
-   `.env`:
+**Apply migrations with the CLI, never by pasting into the SQL Editor.**
 
-   ```bash
-   EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-   EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhb...
-   ```
+That is not a style preference. Supabase records which migrations have run in
+`supabase_migrations.schema_migrations`, and the SQL Editor does not write to
+it. Paste the SQL by hand and the database is correct but the ledger is empty —
+so the GitHub integration, which deploys migrations on every push to `main`,
+tries to run them again and fails with `type "meet_intent" already exists`. The
+database stays fine and every deployment after that shows red.
 
-5. Regenerate the TypeScript types so they match what actually exists:
+`supabase db push` applies **and** records. That is the entire difference.
 
-   ```bash
-   npx supabase gen types typescript --project-id <id> > src/infrastructure/supabase/database.types.ts
-   ```
+```bash
+npx supabase login                                    # once per machine
+npx supabase link --project-ref dxggtnpnyxqjyarxvczh  # asks for the DB password
+npx supabase db push                                  # lists what it will apply
+```
 
-   From then on, never edit that file by hand. Generating it is what makes a
-   column rename a compile error instead of an `undefined` at runtime.
+Then Settings → **API Keys** → copy the **Project URL** and the **anon public
+key** into `.env`:
+
+```bash
+EXPO_PUBLIC_SUPABASE_URL=https://dxggtnpnyxqjyarxvczh.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhb...
+```
+
+Confirm both migrations are recorded:
+
+```sql
+select version, name from supabase_migrations.schema_migrations order by version;
+```
+
+Then regenerate the TypeScript types so they match what actually exists:
+
+```bash
+npx supabase gen types typescript --project-id dxggtnpnyxqjyarxvczh > src/infrastructure/supabase/database.types.ts
+```
+
+From then on, never edit that file by hand. Generating it is what makes a column
+rename a compile error instead of an `undefined` at runtime.
 
 The moment both `.env` values are present, the composition root wires the
 Supabase repositories instead of the in-memory ones. Nothing else changes.
@@ -95,4 +124,17 @@ Add a new numbered file — `0003_whatever.sql` — rather than editing an exist
 one. A migration that has already run on the production database cannot be
 edited; it can only be followed by another.
 
+The repository is connected to this project through Supabase's GitHub
+integration, with `main` as the production branch, so merging a PR that adds a
+file to `migrations/` applies it automatically. Nobody runs anything by hand.
+
+The flow is therefore: write the new file, `supabase db push` to apply it from
+your branch, open a PR. The merge is a no-op, because the ledger already records
+it — which is exactly why the CLI and not the SQL Editor.
+
 After any change, regenerate `database.types.ts` and run `npm run verify`.
+
+**Do not enable Supabase Branching** — a separate preview database per git
+branch — without discussing it first. It is billed by usage and, unlike
+everything else on this account, **is not covered by the Spend Cap**. It is the
+one setting here that can produce a real invoice.
