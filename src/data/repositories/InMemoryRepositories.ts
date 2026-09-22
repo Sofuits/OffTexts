@@ -197,9 +197,29 @@ export class InMemoryReviewRepository implements ReviewRepository {
  * button's loading state is visible during development instead of being a
  * frame long.
  */
+export type InMemoryAuthOptions = {
+  /**
+   * Report an existing session from the moment the app starts.
+   *
+   * Default false, so the auth gate is exercised the way a real member meets
+   * it. `env.devSkipAuth` turns it on to skip sign-in while the screens are
+   * being built.
+   *
+   * Note where this lives: the bypass is a property of the fake backend, not a
+   * branch in the navigator or the gate. Those stay exactly as they are and
+   * simply believe what the repository tells them — which is the point of the
+   * repository being an interface.
+   */
+  startSignedIn?: boolean;
+};
+
 export class InMemoryAuthRepository implements AuthRepository {
-  private session: Session | null = null;
+  private session: Session | null;
   private readonly listeners = new Set<(state: AuthState) => void>();
+
+  constructor(options: InMemoryAuthOptions = {}) {
+    this.session = options.startSignedIn ? SEED_SESSION : null;
+  }
 
   private emit(): void {
     const state: AuthState = this.session

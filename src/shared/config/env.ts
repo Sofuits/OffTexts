@@ -18,6 +18,7 @@ type Extra = {
   supabaseUrl?: string;
   supabaseAnonKey?: string;
   environment?: string;
+  devSkipAuth?: string | boolean;
   sentryDsn?: string;
   enableAnalytics?: string | boolean;
 };
@@ -52,6 +53,26 @@ export const env = {
    * with no backend account at all. Nothing else in the codebase branches on it.
    */
   hasSupabase: supabaseUrl.length > 0 && supabaseAnonKey.length > 0,
+
+  /**
+   * Start the app already signed in, against in-memory data. Development only.
+   *
+   * It exists so the screens can be worked on before Google sign-in is
+   * configured, and it is deliberately awkward in two ways.
+   *
+   * First, `environment === 'production'` disables it no matter what the
+   * variable says, so a forgotten `.env` cannot ship an app that lets anyone
+   * past the auth gate. A flag that can only be wrong in development is worth
+   * having; one that can be wrong in production is a liability.
+   *
+   * Second, it forces the in-memory repositories even when Supabase is
+   * configured. That is not a limitation, it is the only coherent behaviour:
+   * every Row Level Security policy on the database requires an authenticated
+   * caller, so a fake session against real Supabase returns zero rows from
+   * every table and the app looks broken rather than empty. Fake session, fake
+   * data — the two belong together.
+   */
+  devSkipAuth: environment !== 'production' && readBoolean(extra.devSkipAuth, false),
 
   sentryDsn: readString(extra.sentryDsn),
   environment,

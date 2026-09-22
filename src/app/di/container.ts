@@ -126,9 +126,9 @@ function buildSupabaseRepositories(
   };
 }
 
-function buildInMemoryRepositories(): Container['repositories'] {
+function buildInMemoryRepositories(startSignedIn = false): Container['repositories'] {
   return {
-    auth: new InMemoryAuthRepository(),
+    auth: new InMemoryAuthRepository({ startSignedIn }),
     profile: new InMemoryProfileRepository(),
     discover: new InMemoryDiscoverRepository(),
     meets: new InMemoryMeetRepository(),
@@ -144,8 +144,12 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
   const secureStore = overrides.services?.secureStore ?? new SecureKeyValueStore(logger);
   const store = overrides.services?.store ?? new AsyncStorageStore(logger);
 
+  // `devSkipAuth` forces in-memory even when Supabase is configured. A fake
+  // session cannot satisfy Row Level Security, so pointing it at the real
+  // database would return zero rows from every table — see env.devSkipAuth.
   const backend =
-    overrides.forceBackend ?? (env.hasSupabase ? ('supabase' as const) : ('in-memory' as const));
+    overrides.forceBackend ??
+    (env.hasSupabase && !env.devSkipAuth ? ('supabase' as const) : ('in-memory' as const));
 
   const teardown: (() => void)[] = [];
   let repositories: Container['repositories'];
@@ -161,6 +165,14 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
     // Without this, the session can expire while the app is backgrounded.
     teardown.push(bridgeSupabaseToAppState(client));
     repositories = buildSupabaseRepositories(client, logger, connectivity, store);
+  } else if (env.devSkipAuth) {
+    // Loud on purpose. The cost of this flag is someone spending an afternoon
+    // wondering why their writes never reach the database.
+    logger.warn(
+      'DEV_SKIP_AUTH is on: starting signed in against in-memory data. ' +
+        'Nothing is read from or written to Supabase. Unset EXPO_PUBLIC_DEV_SKIP_AUTH to use the real backend.',
+    );
+    repositories = buildInMemoryRepositories(true);
   } else {
     logger.info('No Supabase configuration found; using in-memory repositories.');
     repositories = buildInMemoryRepositories();

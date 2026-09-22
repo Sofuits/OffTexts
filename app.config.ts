@@ -67,6 +67,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
     environment: process.env.EXPO_PUBLIC_ENVIRONMENT,
+    // Development convenience only. `src/shared/config/env.ts` refuses to honour
+    // it when EXPO_PUBLIC_ENVIRONMENT is production, so it cannot ship enabled.
+    devSkipAuth: process.env.EXPO_PUBLIC_DEV_SKIP_AUTH,
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
     enableAnalytics: process.env.EXPO_PUBLIC_ENABLE_ANALYTICS,
   },
