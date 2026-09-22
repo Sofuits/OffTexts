@@ -50,5 +50,15 @@ export interface AuthRepository {
   /** Emails a one-time link. Resolves when the mail is sent, not when it is clicked. */
   sendMagicLink(email: string): Promise<Result<void>>;
 
+  /**
+   * Emails a password reset link.
+   *
+   * Succeeds whether or not an account exists at that address. That is not an
+   * oversight to be tidied up later: reporting "no such account" would turn
+   * this into a way to find out who is a member, which for a dating app is a
+   * disclosure in itself.
+   */
+  sendPasswordReset(email: string): Promise<Result<void>>;
+
   signOut(): Promise<Result<void>>;
 }

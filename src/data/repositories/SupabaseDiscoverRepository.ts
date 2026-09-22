@@ -7,7 +7,8 @@ import {
   type Result,
 } from '@/domain/repositories';
 import { toPerson } from '@/data/mappers';
-import { classifySupabaseError, type TypedSupabaseClient } from '@/infrastructure/supabase';
+import { classifySupabaseError } from '@/infrastructure/supabase/supabaseErrors';
+import type { TypedSupabaseClient } from '@/infrastructure/supabase/supabaseClient';
 
 /**
  * Discover suggestions on Supabase.

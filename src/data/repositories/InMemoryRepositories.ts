@@ -263,6 +263,11 @@ export class InMemoryAuthRepository implements AuthRepository {
     return success(undefined);
   }
 
+  async sendPasswordReset(): Promise<Result<void>> {
+    await delay();
+    return success(undefined);
+  }
+
   async signOut(): Promise<Result<void>> {
     await delay();
     this.session = null;

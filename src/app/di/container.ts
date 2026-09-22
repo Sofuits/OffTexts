@@ -21,9 +21,11 @@ import type {
 import {
   GetScheduledMeets,
   RequestMeet,
+  RequestPasswordReset,
   SignIn,
   SignInWithGoogle,
   SignOut,
+  SignUp,
   SubmitReview,
 } from '@/domain/usecases';
 import { NoopAnalytics, type Analytics } from '@/infrastructure/analytics';
@@ -43,6 +45,8 @@ import {
 import {
   bridgeSupabaseToAppState,
   createSupabaseClient,
+  passwordResetRedirect,
+  runOAuthFlow,
   type TypedSupabaseClient,
 } from '@/infrastructure/supabase';
 import { env } from '@/shared/config';
@@ -75,6 +79,8 @@ export type Container = {
   };
   useCases: {
     signIn: SignIn;
+    signUp: SignUp;
+    requestPasswordReset: RequestPasswordReset;
     signInWithGoogle: SignInWithGoogle;
     signOut: SignOut;
     getScheduledMeets: GetScheduledMeets;
@@ -118,7 +124,9 @@ function buildSupabaseRepositories(
   const meetCache = new MeetLocalDataSource(store, logger);
 
   return {
-    auth: new SupabaseAuthRepository(client, logger),
+    // The browser flow is handed in here, not imported by the repository —
+    // that is what keeps `data/` loadable outside React Native.
+    auth: new SupabaseAuthRepository(client, logger, runOAuthFlow, passwordResetRedirect()),
     profile: new SupabaseProfileRepository(client, profileCache, connectivity, logger),
     discover: new SupabaseDiscoverRepository(client),
     meets: new SupabaseMeetRepository(client, meetCache, connectivity, logger),
@@ -161,6 +169,7 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
       // The session holds a refresh token, so it belongs in the keychain.
       storage: secureStore,
       logger,
+      environment: env.environment,
     });
     // Without this, the session can expire while the app is backgrounded.
     teardown.push(bridgeSupabaseToAppState(client));
@@ -184,6 +193,8 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
     repositories,
     useCases: {
       signIn: new SignIn(repositories.auth),
+      signUp: new SignUp(repositories.auth),
+      requestPasswordReset: new RequestPasswordReset(repositories.auth),
       signInWithGoogle: new SignInWithGoogle(repositories.auth),
       // Signing out must also drop whatever the previous member left on disk,
       // or the next person to sign in on this phone sees their cached profile.

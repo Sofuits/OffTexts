@@ -53,10 +53,11 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm test",
-    "doctor": "npx expo-doctor"
+    "doctor": "npx expo-doctor",
+    "types:generate": "node scripts/generate-types.mjs --local > src/infrastructure/supabase/database.types.ts && prettier --write src/infrastructure/supabase/database.types.ts"
   },
   "private": true,
-  "description": "Offtexts mobile app — React Native (Expo) boilerplate: navigation, theme system and tooling.",
+  "description": "Offtexts mobile app \u2014 React Native (Expo) boilerplate: navigation, theme system and tooling.",
   "engines": {
     "node": ">=20.19.4"
   }

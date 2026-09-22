@@ -1,3 +1,4 @@
+export * from './AdminRepository';
 export * from './AuthRepository';
 export * from './DiscoverRepository';
 export * from './MeetRepository';

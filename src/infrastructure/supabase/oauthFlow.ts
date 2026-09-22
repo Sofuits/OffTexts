@@ -49,6 +49,24 @@ function readTokens(url: string): { accessToken: string; refreshToken: string } 
   return { accessToken, refreshToken };
 }
 
+/**
+ * Where a password reset email should send the member back to.
+ *
+ * Built from the scheme in app.config.ts by expo-linking, exactly like the
+ * OAuth callback above, so the two cannot drift apart. It lives in this file
+ * because this is already the one place in the data path that is allowed to
+ * touch a native module — every other file in `data/` has to load in a browser
+ * for the admin portal, and expo-linking does not.
+ *
+ * IT MUST ALSO BE LISTED in the Supabase dashboard under Authentication → URL
+ * Configuration → Redirect URLs. When it is not, Supabase does not fail: it
+ * quietly substitutes the project's site URL, and the member taps the link on
+ * their phone and lands on a web page instead of in the app.
+ */
+export function passwordResetRedirect(): string {
+  return Linking.createURL('/auth/reset');
+}
+
 export async function runOAuthFlow(
   client: TypedSupabaseClient,
   provider: 'google',

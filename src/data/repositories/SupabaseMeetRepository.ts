@@ -11,7 +11,8 @@ import type { MeetLocalDataSource } from '@/data/datasources/local';
 import { toMeet, type MeetRowWithPerson } from '@/data/mappers';
 import type { Logger } from '@/infrastructure/logging';
 import type { ConnectivityMonitor } from '@/infrastructure/network';
-import { classifySupabaseError, type TypedSupabaseClient } from '@/infrastructure/supabase';
+import { classifySupabaseError } from '@/infrastructure/supabase/supabaseErrors';
+import type { TypedSupabaseClient } from '@/infrastructure/supabase/supabaseClient';
 
 /**
  * Meets on Supabase, with the same offline fallback as profiles.

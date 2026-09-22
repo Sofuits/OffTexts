@@ -70,6 +70,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // Development convenience only. `src/shared/config/env.ts` refuses to honour
     // it when EXPO_PUBLIC_ENVIRONMENT is production, so it cannot ship enabled.
     devSkipAuth: process.env.EXPO_PUBLIC_DEV_SKIP_AUTH,
+    // Off unless explicitly enabled. See src/shared/config/env.ts — a Google
+    // button with no configured provider fails on tap, which is a worse first
+    // impression than not offering it.
+    enableGoogleAuth: process.env.EXPO_PUBLIC_ENABLE_GOOGLE_AUTH,
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
     enableAnalytics: process.env.EXPO_PUBLIC_ENABLE_ANALYTICS,
   },

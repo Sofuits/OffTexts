@@ -1,5 +1,5 @@
 import { MEET_STATUSES, type Meet, type MeetStatus } from '@/domain/entities';
-import type { MeetRow } from '@/infrastructure/supabase';
+import type { MeetRow } from '@/infrastructure/supabase/rows';
 
 /**
  * Converts a `meets` row into a `Meet`.

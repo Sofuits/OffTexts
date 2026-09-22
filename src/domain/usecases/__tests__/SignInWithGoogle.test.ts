@@ -23,6 +23,7 @@ function authRepository(overrides: Partial<AuthRepository> = {}): AuthRepository
     signInWithPassword: async () => success(SESSION),
     signUpWithPassword: async () => success(SESSION),
     sendMagicLink: async () => success(undefined),
+    sendPasswordReset: async () => success(undefined),
     signOut: async () => success(undefined),
     ...overrides,
   };

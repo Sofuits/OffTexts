@@ -19,6 +19,7 @@ type Extra = {
   supabaseAnonKey?: string;
   environment?: string;
   devSkipAuth?: string | boolean;
+  enableGoogleAuth?: string | boolean;
   sentryDsn?: string;
   enableAnalytics?: string | boolean;
 };
@@ -73,6 +74,21 @@ export const env = {
    * data — the two belong together.
    */
   devSkipAuth: environment !== 'production' && readBoolean(extra.devSkipAuth, false),
+
+  /**
+   * Whether to offer "Continue with Google".
+   *
+   * Defaults to FALSE, and that default is the point. Google sign-in needs an
+   * OAuth client in Google Cloud and the provider switched on in the Supabase
+   * dashboard; until both exist, tapping the button produces
+   * "Unsupported provider: provider is not enabled" — an error the member can
+   * do nothing about, on the first screen of the app.
+   *
+   * A button that always fails is worse than no button. This flag means the
+   * option appears the day it works and not a day earlier, without a code
+   * change, and it means nobody has to remember to delete a placeholder.
+   */
+  enableGoogleAuth: readBoolean(extra.enableGoogleAuth, false),
 
   sentryDsn: readString(extra.sentryDsn),
   environment,

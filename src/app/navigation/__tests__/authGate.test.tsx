@@ -31,6 +31,7 @@ function authIn(state: AuthState): AuthRepository {
     signInWithPassword: async () => success(SESSION),
     signUpWithPassword: async () => success(SESSION),
     sendMagicLink: async () => success(undefined),
+    sendPasswordReset: async () => success(undefined),
     signOut: async () => success(undefined),
   };
 }
@@ -58,7 +59,9 @@ describe('auth gate', () => {
     renderWith(authIn({ status: 'signedOut' }));
 
     expect(await screen.findByTestId('screen-sign-in')).toBeTruthy();
-    expect(await screen.findByText('Continue with Google')).toBeTruthy();
+    // Email and password, not Google. Google is behind env.enableGoogleAuth,
+    // which is false until the provider actually exists — see SignInScreen.
+    expect(await screen.findByTestId('button-submit')).toBeTruthy();
   });
 
   it('never shows the tabs to a signed-out member', async () => {
