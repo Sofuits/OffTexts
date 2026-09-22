@@ -44,5 +44,10 @@ yarn-error.*
 .idea/
 .vscode/
 
+# Supabase CLI local state — which project this machine is linked to, pooler
+# URLs, cached version stamps. Written by `supabase link`, different on every
+# machine, and of no use to anyone else.
+supabase/.temp/
+
 # Jest
 coverage/
