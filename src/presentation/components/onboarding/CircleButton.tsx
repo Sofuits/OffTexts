@@ -11,6 +11,7 @@ export type CircleButtonProps = {
   onPress: () => void;
   disabled?: boolean;
   loading?: boolean;
+  /** Defaults to 48, the next button Breeze measures at. */
   size?: number;
   /** `primary` fills with forest; `muted` is a white button with a ring, for the quieter of a pair. */
   tone?: 'primary' | 'muted' | 'danger' | 'success';
@@ -19,8 +20,11 @@ export type CircleButtonProps = {
 };
 
 /**
- * The round button at the bottom-right of every onboarding step, and the
+ * The square-ish button at the bottom-right of every onboarding step, and the
  * like/pass pair on Today.
+ *
+ * Despite the name it is a squircle (radius `lg`), the same shape family as
+ * every other control; the name stays so no screen has to change to get it.
  *
  * It stays on screen and visibly disabled rather than disappearing until the
  * answer is valid. A control that vanishes makes people wonder what they did
@@ -37,13 +41,14 @@ export function CircleButton({
   onPress,
   disabled = false,
   loading = false,
-  size = 60,
+  size,
   tone = 'primary',
   style,
   testID,
 }: CircleButtonProps): React.JSX.Element {
   const theme = useTheme();
   const isDisabled = disabled || loading;
+  const side = size ?? theme.sizes.nextButton;
 
   // Each tone owns its foreground. Reusing `textOnPrimary` for every fill is
   // what once drew a white glyph on the white `muted` button.
@@ -58,8 +63,8 @@ export function CircleButton({
     success: { fill: theme.colors.success, glyph: theme.colors.textOnPrimary, ring: undefined },
   } as const;
 
-  // Disabled is a flat `muted` fill with no ring: it has to read as "not yet",
-  // not as a quieter version of the same button.
+  // Disabled is a flat `muted` fill with no ring and no shadow: it has to read
+  // as "not yet", not as a quieter version of the same button.
   const { fill, glyph, ring } = isDisabled
     ? { fill: theme.colors.muted, glyph: theme.colors.textDisabled, ring: undefined }
     : tones[tone];
@@ -75,20 +80,26 @@ export function CircleButton({
       style={({ pressed }) => [
         styles.circle,
         {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
+          width: side,
+          height: side,
+          borderRadius: theme.radii.lg,
           backgroundColor: fill,
           borderColor: ring ?? theme.colors.transparent,
         },
+        !isDisabled && theme.shadows.sm,
         pressed && !isDisabled && styles.pressed,
+        pressed &&
+          !isDisabled &&
+          tone === 'primary' && {
+            backgroundColor: theme.colors.primaryPressed,
+          },
         style,
       ]}
     >
       {loading ? (
         <ActivityIndicator color={glyph} />
       ) : (
-        <Ionicons name={icon} size={Math.round(size * 0.42)} color={glyph} />
+        <Ionicons name={icon} size={Math.round(side * 0.42)} color={glyph} />
       )}
     </Pressable>
   );
@@ -100,5 +111,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1.5,
   },
-  pressed: { opacity: 0.85, transform: [{ scale: 0.96 }] },
+  pressed: { transform: [{ scale: 0.96 }] },
 });

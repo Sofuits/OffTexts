@@ -18,9 +18,13 @@ export type ProgressDotsProps = {
  * "how far along am I" but "how many more of these are there". A 60% bar does
  * not answer that; nine dashes with four filled does.
  *
- * It stops being legible past about a dozen steps — the bars get too thin to
- * count — so above that it collapses to a single track with a filled portion.
- * That is a real limit of the pattern rather than something to design around.
+ * Each bar is 15×4: forest when done, `muted` when not, and the current one
+ * half filled — you are on it, not past it.
+ *
+ * Above sixteen steps the bars stop fitting across a phone, so it collapses to
+ * a single track with a filled portion. That is a real limit of the pattern
+ * rather than something to design around. Onboarding is twelve or thirteen
+ * steps depending on the purpose, and both must get the same bars.
  */
 export function ProgressDots({
   current,
@@ -32,7 +36,7 @@ export function ProgressDots({
   const safeTotal = Math.max(total, 1);
   const done = Math.min(Math.max(current, 0), safeTotal);
 
-  if (safeTotal > 12) {
+  if (safeTotal > MAX_BARS) {
     return (
       <View
         style={[styles.row, style]}
@@ -64,23 +68,30 @@ export function ProgressDots({
       accessibilityValue={{ min: 0, max: safeTotal, now: done }}
     >
       {Array.from({ length: safeTotal }, (_, index) => (
-        <View
-          key={index}
-          style={[
-            styles.dash,
-            {
-              backgroundColor: index < done ? theme.colors.primary : theme.colors.muted,
-            },
-          ]}
-        />
+        <View key={index} style={[styles.dash, { backgroundColor: theme.colors.muted }]}>
+          {index < done ? (
+            <View
+              style={[
+                styles.dashFill,
+                {
+                  backgroundColor: theme.colors.primary,
+                  width: index === done - 1 ? '50%' : '100%',
+                },
+              ]}
+            />
+          ) : null}
+        </View>
       ))}
     </View>
   );
 }
 
+const MAX_BARS = 16;
+
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  dash: { flex: 1, height: 4, borderRadius: 2 },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flex: 1 },
+  dash: { width: 15, height: 4, borderRadius: 2, overflow: 'hidden' },
+  dashFill: { height: 4 },
   track: { flex: 1, height: 4, borderRadius: 2, overflow: 'hidden' },
   fill: { height: 4, borderRadius: 2 },
 });

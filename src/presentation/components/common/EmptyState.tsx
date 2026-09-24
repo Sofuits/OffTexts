@@ -24,6 +24,9 @@ export type EmptyStateProps = {
  * until tomorrow — so these are not edge cases, they are the resting state of
  * the app. Each one says why it is empty and when that changes, because
  * "Nothing here" on a screen somebody opened on purpose reads as a fault.
+ *
+ * A white card, radius `xl`, with the glyph in a `tint` circle. The circle has
+ * to be tinted: a white one on a white card is invisible.
  */
 export function EmptyState({
   icon,
@@ -45,6 +48,7 @@ export function EmptyState({
           borderColor: theme.colors.border,
           backgroundColor: theme.colors.card,
           padding: theme.spacing[32],
+          ...theme.shadows.sm,
         },
         style,
       ]}
@@ -53,7 +57,7 @@ export function EmptyState({
       <View
         style={[
           styles.badge,
-          { backgroundColor: theme.colors.inset, borderRadius: theme.radii.full },
+          { backgroundColor: theme.colors.tint, borderRadius: theme.radii.full },
         ]}
       >
         <Ionicons name={icon} size={26} color={theme.colors.primary} />

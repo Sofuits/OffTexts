@@ -10,6 +10,11 @@ export type AvatarProps = {
   /** Remote or bundled image. Falls back to initials when absent or broken. */
   uri?: string;
   size?: number;
+  /**
+   * A 2dp white ring, for an avatar sitting on a coloured surface or
+   * overlapping another avatar, where the hairline edge disappears.
+   */
+  ring?: boolean;
   style?: ViewStyle;
 };
 
@@ -19,7 +24,13 @@ export type AvatarProps = {
  * The fallback is not decoration: profiles arrive without photos and a plain
  * grey circle tells the user nothing about whose row they are looking at.
  */
-export function Avatar({ name, uri, size = 56, style }: AvatarProps): React.JSX.Element {
+export function Avatar({
+  name,
+  uri,
+  size = 56,
+  ring = false,
+  style,
+}: AvatarProps): React.JSX.Element {
   const theme = useTheme();
 
   // `Image` takes ImageStyle and `View` takes ViewStyle. They overlap almost
@@ -32,8 +43,8 @@ export function Avatar({ name, uri, size = 56, style }: AvatarProps): React.JSX.
     // `tint`, not `inset`: inputs are white now, and a white avatar vanishes on
     // a white card — the match moment's overlapping pair lost its second face.
     backgroundColor: theme.colors.tint,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: theme.colors.border,
+    borderWidth: ring ? 2 : StyleSheet.hairlineWidth,
+    borderColor: ring ? theme.colors.surface : theme.colors.border,
   } satisfies ImageStyle & ViewStyle;
 
   if (uri) {

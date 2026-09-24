@@ -220,7 +220,7 @@ export function TodayScreen({ navigation }: Props): React.JSX.Element {
               testID="button-pass"
             />
             <CircleButton
-              icon="heart"
+              icon="cafe"
               accessibilityLabel={`Like ${current.person.name}`}
               tone="primary"
               size={72}

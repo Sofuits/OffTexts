@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 
@@ -19,15 +18,18 @@ export type ChipProps = {
 };
 
 /**
- * A tappable pill, for picking several things out of many.
+ * A tappable chip, for picking several things out of many.
  *
  * Distinct from `Badge`, which looks similar and is not interactive. Keeping
  * them separate means a static tag can never accidentally acquire a press
  * handler, and a chip is never rendered without one.
  *
- * Selection is shown by fill and by a tick, not by colour alone — roughly one
- * man in twelve cannot reliably tell the brass fill from the surface, and the
- * tick costs nothing.
+ * Selection is inversion: white with an ink label when off, solid forest with
+ * a white label when on. No tick and no ring — the fill is the state. That is
+ * a change in lightness, not just hue, so it holds for the one man in twelve
+ * who cannot tell green from brown.
+ *
+ * Radius `md`, not a pill, and 44 tall so it clears the touch-target minimum.
  */
 export function Chip({
   label,
@@ -50,43 +52,75 @@ export function Chip({
       style={({ pressed }) => [
         styles.chip,
         {
-          minHeight: theme.minTouchTarget - 8,
+          minHeight: theme.sizes.chip,
           paddingVertical: theme.spacing[8],
           paddingHorizontal: theme.spacing[16],
-          gap: theme.spacing[8],
-          borderRadius: theme.radii.full,
+          borderRadius: theme.radii.md,
           borderWidth: StyleSheet.hairlineWidth * 2,
           borderColor: selected ? theme.colors.primary : theme.colors.border,
-          backgroundColor: selected ? theme.colors.inset : theme.colors.transparent,
+          backgroundColor: selected ? theme.colors.primary : theme.colors.card,
         },
         pressed && !disabled && styles.pressed,
         disabled && !selected && styles.disabled,
         style,
       ]}
     >
-      {selected ? <Ionicons name="checkmark" size={16} color={theme.colors.primary} /> : null}
-      <AppText variant="label" color={selected ? 'primary' : 'textSecondary'}>
+      <AppText variant="title" color={selected ? 'textOnPrimary' : 'textPrimary'}>
         {label}
       </AppText>
     </Pressable>
   );
 }
 
-/** Lays chips out in a wrapping row on the spacing scale. */
-export function ChipGroup({
-  children,
-  style,
-}: {
+export type ChipGroupProps = {
   children: React.ReactNode;
+  /**
+   * When set, the selected chips are repeated in a group above the list under
+   * this heading ("My selection"), so nothing picked scrolls out of sight.
+   * Tapping one there deselects it, exactly as it would in the list.
+   */
+  selectionLabel?: string;
   style?: ViewStyle;
-}): React.JSX.Element {
+};
+
+/** Lays chips out in a wrapping row on the spacing scale. */
+export function ChipGroup({ children, selectionLabel, style }: ChipGroupProps): React.JSX.Element {
   const theme = useTheme();
-  return <View style={[styles.group, { gap: theme.spacing[8] }, style]}>{children}</View>;
+
+  const selected = selectionLabel
+    ? React.Children.toArray(children).filter(
+        (child): child is React.ReactElement<ChipProps> =>
+          React.isValidElement<ChipProps>(child) && child.props.selected === true,
+      )
+    : [];
+
+  const list = <View style={[styles.group, { gap: theme.spacing[8] }]}>{children}</View>;
+
+  if (!selectionLabel || selected.length === 0) {
+    return <View style={style}>{list}</View>;
+  }
+
+  return (
+    <View style={style}>
+      <AppText variant="label">{selectionLabel}</AppText>
+      <View
+        style={[styles.group, { gap: theme.spacing[8], marginTop: theme.spacing[8] }]}
+        testID="chip-selection"
+      >
+        {/* The same chips again, without their testIDs: a test that finds a
+            chip by id should find the one in the list, and only that one. */}
+        {selected.map((chip) =>
+          React.cloneElement(chip, { key: `selected-${String(chip.key)}`, testID: undefined }),
+        )}
+      </View>
+      <View style={{ marginTop: theme.spacing[20] }}>{list}</View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  chip: { flexDirection: 'row', alignItems: 'center' },
+  chip: { alignItems: 'center', justifyContent: 'center' },
   group: { flexDirection: 'row', flexWrap: 'wrap' },
-  pressed: { opacity: 0.8 },
+  pressed: { transform: [{ scale: 0.97 }] },
   disabled: { opacity: 0.4 },
 });

@@ -24,8 +24,8 @@ export { InterestPicker, type InterestPickerProps } from './inputs/InterestPicke
 export { TextField, type TextFieldProps } from './inputs/TextField';
 export { ScreenContainer, type ScreenContainerProps } from './layouts/ScreenContainer';
 export { ScreenHeader, type ScreenHeaderProps } from './layouts/ScreenHeader';
-export { Chip, ChipGroup, type ChipProps } from './onboarding/Chip';
-export { ChoiceRow, type ChoiceRowProps } from './onboarding/ChoiceRow';
+export { Chip, ChipGroup, type ChipGroupProps, type ChipProps } from './onboarding/Chip';
+export { ChoiceRow, type ChoiceRowPosition, type ChoiceRowProps } from './onboarding/ChoiceRow';
 export { CircleButton, type CircleButtonProps } from './onboarding/CircleButton';
 export { DateOfBirthField, type DateOfBirthFieldProps } from './onboarding/DateOfBirthField';
 export { IconTile, type IconTileProps } from './onboarding/IconTile';

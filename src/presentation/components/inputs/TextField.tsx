@@ -16,9 +16,14 @@ export type TextFieldProps = Omit<TextInputProps, 'style'> & {
 /**
  * A labelled text input.
  *
- * Included so that forms added later start from a themed, accessible field
- * rather than a bare `TextInput`. No form uses it yet — editing is out of scope
- * for this boilerplate.
+ * White on cream, radius `lg`, 52 tall, with a hairline edge. Focus is shown
+ * the way Breeze shows it: a solid band about 5dp deep appears under the
+ * field's bottom edge, as if the field had lifted. The border stays a hairline
+ * on focus, so the band is the only signal. Room for the band is reserved
+ * whether it is showing or not, so focusing a field never moves the form.
+ *
+ * An error is a 2dp danger border plus the message underneath, never colour
+ * alone.
  */
 export function TextField({
   label,
@@ -27,16 +32,12 @@ export function TextField({
   containerStyle,
   onFocus,
   onBlur,
+  multiline,
   ...rest
 }: TextFieldProps): React.JSX.Element {
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
-
-  const borderColor = error
-    ? theme.colors.danger
-    : focused
-      ? theme.colors.primary
-      : theme.colors.border;
+  const band = theme.sizes.fieldFocusBand;
 
   return (
     <View style={containerStyle}>
@@ -44,33 +45,46 @@ export function TextField({
         {label}
       </AppText>
 
-      <TextInput
-        accessibilityLabel={label}
-        placeholderTextColor={theme.colors.placeholder}
-        onFocus={(event) => {
-          setFocused(true);
-          onFocus?.(event);
-        }}
-        onBlur={(event) => {
-          setFocused(false);
-          onBlur?.(event);
-        }}
-        style={[
-          styles.input,
-          theme.typography.body,
-          {
-            marginTop: theme.spacing[8],
-            minHeight: 48,
-            paddingHorizontal: theme.spacing[16],
-            borderRadius: theme.radii.md,
-            borderWidth: StyleSheet.hairlineWidth * 2,
-            borderColor,
-            color: theme.colors.textPrimary,
-            backgroundColor: theme.colors.surface,
-          },
-        ]}
-        {...rest}
-      />
+      <View style={{ marginTop: theme.spacing[8], paddingBottom: band }}>
+        {focused ? (
+          <View
+            pointerEvents="none"
+            style={[
+              styles.band,
+              { top: band, borderRadius: theme.radii.lg, backgroundColor: theme.colors.border },
+            ]}
+          />
+        ) : null}
+
+        <TextInput
+          accessibilityLabel={label}
+          placeholderTextColor={theme.colors.placeholder}
+          multiline={multiline}
+          onFocus={(event) => {
+            setFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            onBlur?.(event);
+          }}
+          style={[
+            styles.input,
+            theme.typography.body,
+            {
+              minHeight: theme.sizes.field,
+              paddingHorizontal: theme.spacing[16],
+              borderRadius: theme.radii.lg,
+              borderWidth: error ? 2 : StyleSheet.hairlineWidth * 2,
+              borderColor: error ? theme.colors.danger : theme.colors.border,
+              color: theme.colors.textPrimary,
+              backgroundColor: theme.colors.inset,
+            },
+            multiline && [styles.multiline, { paddingVertical: theme.spacing[12] }],
+          ]}
+          {...rest}
+        />
+      </View>
 
       {error || hint ? (
         <AppText
@@ -86,5 +100,10 @@ export function TextField({
 }
 
 const styles = StyleSheet.create({
-  input: { width: '100%' },
+  // Above the band on every platform. Native paints siblings in order, but on
+  // the web an absolutely positioned band paints over a static input.
+  input: { width: '100%', position: 'relative', zIndex: 1 },
+  // Android centres multiline text vertically unless told otherwise.
+  multiline: { textAlignVertical: 'top' },
+  band: { position: 'absolute', left: 0, right: 0, bottom: 0 },
 });

@@ -58,8 +58,9 @@ export function QueryBoundary<T>({
           styles.centre,
           styles.panel,
           {
-            borderRadius: theme.radii.lg,
+            borderRadius: theme.radii.xl,
             borderColor: theme.colors.border,
+            backgroundColor: theme.colors.card,
             padding: theme.spacing[24],
           },
         ]}
@@ -92,10 +93,12 @@ export function QueryBoundary<T>({
         style={[
           styles.centre,
           styles.panel,
-          styles.dashed,
+          // A white card like `EmptyState`, not a dashed outline: dashed reads
+          // as "drop something here", and there is nothing to drop.
           {
-            borderRadius: theme.radii.lg,
+            borderRadius: theme.radii.xl,
             borderColor: theme.colors.border,
+            backgroundColor: theme.colors.card,
             padding: theme.spacing[32],
           },
         ]}
@@ -113,5 +116,4 @@ export function QueryBoundary<T>({
 const styles = StyleSheet.create({
   centre: { alignItems: 'center', justifyContent: 'center' },
   panel: { borderWidth: StyleSheet.hairlineWidth },
-  dashed: { borderStyle: 'dashed' },
 });

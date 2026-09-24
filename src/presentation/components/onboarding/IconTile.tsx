@@ -7,7 +7,7 @@ import { useTheme } from '@/presentation/hooks/useTheme';
 export type IconTileProps = {
   name: keyof typeof Ionicons.glyphMap;
   size?: number;
-  /** Brass on moss by default; `plain` drops the tile and keeps the glyph. */
+  /** A white squircle by default; `plain` drops the tile and keeps the glyph. */
   variant?: 'tile' | 'plain';
   style?: ViewStyle;
 };
@@ -20,18 +20,22 @@ export type IconTileProps = {
  * question reads as a form; the same step with a tile reads as a conversation,
  * and people finish those.
  *
+ * A white squircle, 52dp, radius `lg`, with the glyph in forest. Pass an
+ * `-outline` glyph: a filled one reads as a button.
+ *
  * Decorative by definition, so it is hidden from screen readers — the question
  * underneath already says what the step is about, and an icon announcing
  * "gift" before "When's your birthday?" is noise.
  */
 export function IconTile({
   name,
-  size = 52,
+  size,
   variant = 'tile',
   style,
 }: IconTileProps): React.JSX.Element {
   const theme = useTheme();
-  const glyph = Math.round(size * 0.46);
+  const side = size ?? theme.sizes.iconTile;
+  const glyph = Math.round(side * 0.46);
 
   if (variant === 'plain') {
     return (
@@ -52,10 +56,10 @@ export function IconTile({
       style={[
         styles.tile,
         {
-          width: size,
-          height: size,
+          width: side,
+          height: side,
           borderRadius: theme.radii.lg,
-          backgroundColor: theme.colors.inset,
+          backgroundColor: theme.colors.card,
           borderColor: theme.colors.border,
         },
         style,

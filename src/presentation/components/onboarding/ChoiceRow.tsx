@@ -5,6 +5,8 @@ import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
 import { AppText } from '@/presentation/components/common/AppText';
 import { useTheme } from '@/presentation/hooks/useTheme';
 
+export type ChoiceRowPosition = 'first' | 'middle' | 'last' | 'only';
+
 export type ChoiceRowProps = {
   label: string;
   /** A line under the label. Used where the choice is not self-explanatory. */
@@ -13,7 +15,13 @@ export type ChoiceRowProps = {
   onPress: () => void;
   /** `single` draws a radio, `multiple` a checkbox. */
   mode?: 'single' | 'multiple';
-  /** An icon on the left, for lists short enough that icons help rather than clutter. */
+  /**
+   * Where the row sits in a `multiple` group, so the shared card rounds its
+   * ends and draws dividers only between rows. Ignored for `single`, where
+   * every option is its own card.
+   */
+  position?: ChoiceRowPosition;
+  /** An icon after the control, for lists short enough that icons help rather than clutter. */
   icon?: keyof typeof Ionicons.glyphMap;
   disabled?: boolean;
   style?: ViewStyle;
@@ -23,10 +31,18 @@ export type ChoiceRowProps = {
 /**
  * One option in a list you pick from.
  *
- * The whole row is the target, not just the control at the end of it. A 20dp
- * radio button is below every touch-target guideline there is, and a list where
- * the label is not tappable is the single most common reason a choice screen
- * feels unresponsive.
+ * The whole row is the target, not just the control. A 22dp radio is below
+ * every touch-target guideline there is, and a list where the label is not
+ * tappable is the single most common reason a choice screen feels
+ * unresponsive.
+ *
+ * SINGLE AND MULTIPLE LOOK DIFFERENT, ON PURPOSE
+ * `single` is one white card per option with gaps between them and a round
+ * control. `multiple` is rows inside one shared white card with hairline
+ * dividers and a square control — the caller stacks them with no gap and says
+ * which is `first`, `middle` and `last`. The shape tells you whether picking
+ * this one un-picks the others before you try it. Both keep the control on the
+ * left, where the eye starts.
  *
  * `accessibilityRole` changes with `mode` so the selected state is announced
  * the way the platform expects — "selected" for a radio, "checked" for a
@@ -39,21 +55,37 @@ export function ChoiceRow({
   selected,
   onPress,
   mode = 'single',
+  position = 'only',
   icon,
   disabled = false,
   style,
   testID,
 }: ChoiceRowProps): React.JSX.Element {
   const theme = useTheme();
+  const hairline = StyleSheet.hairlineWidth * 2;
 
-  const control =
+  const shape: ViewStyle =
     mode === 'single'
-      ? selected
-        ? 'ellipse'
-        : 'ellipse-outline'
-      : selected
-        ? 'checkbox'
-        : 'square-outline';
+      ? {
+          borderRadius: theme.radii.lg,
+          borderWidth: hairline,
+          borderColor: selected ? theme.colors.primary : theme.colors.border,
+        }
+      : {
+          borderColor: theme.colors.border,
+          borderLeftWidth: hairline,
+          borderRightWidth: hairline,
+          // The first row's top edge is the card's; every other row's top edge
+          // is the divider under the row above, which draws no bottom edge.
+          borderTopWidth: hairline,
+          borderBottomWidth: position === 'last' || position === 'only' ? hairline : 0,
+          ...(position === 'first' || position === 'only'
+            ? { borderTopLeftRadius: theme.radii.lg, borderTopRightRadius: theme.radii.lg }
+            : {}),
+          ...(position === 'last' || position === 'only'
+            ? { borderBottomLeftRadius: theme.radii.lg, borderBottomRightRadius: theme.radii.lg }
+            : {}),
+        };
 
   return (
     <Pressable
@@ -66,20 +98,20 @@ export function ChoiceRow({
       style={({ pressed }) => [
         styles.row,
         {
-          minHeight: theme.minTouchTarget + 12,
+          minHeight: theme.sizes.optionRow,
           paddingVertical: theme.spacing[12],
           paddingHorizontal: theme.spacing[16],
           gap: theme.spacing[12],
-          borderRadius: theme.radii.lg,
-          borderWidth: StyleSheet.hairlineWidth * 2,
-          borderColor: selected ? theme.colors.primary : theme.colors.border,
-          backgroundColor: selected ? theme.colors.inset : theme.colors.card,
+          backgroundColor: theme.colors.card,
         },
-        pressed && !disabled && styles.pressed,
+        shape,
+        pressed && !disabled && { backgroundColor: theme.colors.background },
         disabled && styles.disabled,
         style,
       ]}
     >
+      <Control mode={mode} selected={selected} />
+
       {icon ? (
         <Ionicons
           name={icon}
@@ -89,26 +121,69 @@ export function ChoiceRow({
       ) : null}
 
       <View style={styles.text}>
-        <AppText variant={selected ? 'bodyStrong' : 'body'}>{label}</AppText>
+        <AppText variant="title">{label}</AppText>
         {description ? (
           <AppText variant="caption" color="textSecondary" style={{ marginTop: theme.spacing[2] }}>
             {description}
           </AppText>
         ) : null}
       </View>
-
-      <Ionicons
-        name={control}
-        size={22}
-        color={selected ? theme.colors.primary : theme.colors.textDisabled}
-      />
     </Pressable>
+  );
+}
+
+const CONTROL = 22;
+
+/**
+ * The radio or the checkbox, drawn rather than taken from the icon font, so the
+ * selected state can be an inverted fill — forest with white inside — like
+ * every other selection in the app.
+ *
+ * The checkbox radius is deliberately small (6, not the `sm` token). At 22dp,
+ * `sm` would round the square into a circle and erase the single/multiple
+ * difference the shapes exist to show.
+ */
+function Control({
+  mode,
+  selected,
+}: {
+  mode: 'single' | 'multiple';
+  selected: boolean;
+}): React.JSX.Element {
+  const theme = useTheme();
+
+  return (
+    <View
+      style={[
+        styles.control,
+        {
+          borderRadius: mode === 'single' ? CONTROL / 2 : 6,
+          borderColor: selected ? theme.colors.primary : theme.colors.textDisabled,
+          backgroundColor: selected ? theme.colors.primary : theme.colors.card,
+        },
+      ]}
+    >
+      {selected ? (
+        mode === 'single' ? (
+          <View style={[styles.dot, { backgroundColor: theme.colors.textOnPrimary }]} />
+        ) : (
+          <Ionicons name="checkmark" size={16} color={theme.colors.textOnPrimary} />
+        )
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
   text: { flex: 1 },
-  pressed: { opacity: 0.85 },
+  control: {
+    width: CONTROL,
+    height: CONTROL,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dot: { width: 8, height: 8, borderRadius: 4 },
   disabled: { opacity: 0.45 },
 });

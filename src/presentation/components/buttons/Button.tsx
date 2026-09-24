@@ -12,7 +12,7 @@ import { AppText } from '@/presentation/components/common/AppText';
 import { useTheme } from '@/presentation/hooks/useTheme';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
-export type ButtonSize = 'sm' | 'md' | 'lg';
+export type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
 
 export type ButtonProps = Omit<PressableProps, 'style' | 'children'> & {
   label: string;
@@ -32,6 +32,13 @@ export type ButtonProps = Omit<PressableProps, 'style' | 'children'> & {
  * Variants cover the cases screens actually need, so a feature never styles a
  * `Pressable` itself. Sizes keep every button on the spacing scale and at or
  * above the minimum touch target.
+ *
+ * Every size is the same squircle family as the rest of the app (radius `lg`),
+ * not a pill. `md` and `lg` are both the 48dp CTA Breeze measures at; `lg` only
+ * pads wider, for full-width calls to action. `xl` (56) is for hero moments.
+ *
+ * Pressed is a darker fill and a slight shrink rather than a fade: a fading
+ * button reads as one that is turning itself off.
  */
 export function Button({
   label,
@@ -56,12 +63,18 @@ export function Button({
       { container: ViewStyle; textColor: Parameters<typeof AppText>[0]['color'] }
     > = {
       primary: {
-        container: { backgroundColor: theme.colors.primary },
+        container: { backgroundColor: theme.colors.primary, ...theme.shadows.sm },
         textColor: 'textOnPrimary',
       },
+      // White with an ink label. It used to be a brass fill with a white label,
+      // which measured 3.20:1 and failed.
       secondary: {
-        container: { backgroundColor: theme.colors.secondary },
-        textColor: 'textOnPrimary',
+        container: {
+          backgroundColor: theme.colors.card,
+          borderWidth: StyleSheet.hairlineWidth * 2,
+          borderColor: theme.colors.borderStrong,
+        },
+        textColor: 'textPrimary',
       },
       outline: {
         container: {
@@ -89,13 +102,19 @@ export function Button({
         borderRadius: theme.radii.md,
       },
       md: {
-        minHeight: 48,
+        minHeight: theme.sizes.cta,
         paddingVertical: theme.spacing[12],
         paddingHorizontal: theme.spacing[20],
         borderRadius: theme.radii.lg,
       },
       lg: {
-        minHeight: 56,
+        minHeight: theme.sizes.cta,
+        paddingVertical: theme.spacing[12],
+        paddingHorizontal: theme.spacing[24],
+        borderRadius: theme.radii.lg,
+      },
+      xl: {
+        minHeight: theme.sizes.ctaXl,
         paddingVertical: theme.spacing[16],
         paddingHorizontal: theme.spacing[24],
         borderRadius: theme.radii.lg,
@@ -119,9 +138,22 @@ export function Button({
         container,
         fullWidth && styles.fullWidth,
         pressed && !isDisabled && styles.pressed,
+        pressed &&
+          !isDisabled &&
+          variant === 'primary' && {
+            backgroundColor: theme.colors.primaryPressed,
+          },
         // A flat `muted` fill rather than fading the colour: a half-transparent
         // forest button reads as a weaker version of the action, not as "not yet".
-        looksDisabled && isFilled && { backgroundColor: theme.colors.muted },
+        looksDisabled &&
+          isFilled && {
+            backgroundColor: theme.colors.muted,
+            borderColor: theme.colors.muted,
+            // Explicit zeros: `shadows.none` is an empty object on iOS, so
+            // spreading it would leave the primary's shadow in place.
+            shadowOpacity: 0,
+            elevation: 0,
+          },
         style,
       ]}
       {...rest}
@@ -139,9 +171,9 @@ export function Button({
           <ActivityIndicator
             style={StyleSheet.absoluteFill}
             color={
-              variant === 'outline' || variant === 'ghost'
-                ? theme.colors.primary
-                : theme.colors.textOnPrimary
+              variant === 'primary' || variant === 'danger'
+                ? theme.colors.textOnPrimary
+                : theme.colors.primary
             }
           />
         ) : null}
@@ -154,6 +186,6 @@ const styles = StyleSheet.create({
   base: { alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
   fullWidth: { alignSelf: 'stretch', width: '100%' },
   content: { alignItems: 'center', justifyContent: 'center' },
-  pressed: { opacity: 0.85 },
+  pressed: { transform: [{ scale: 0.98 }] },
   hidden: { opacity: 0 },
 });
