@@ -22,25 +22,19 @@ jest.mock('@react-native-async-storage/async-storage', () =>
  * `accessibilityLabel` is still queryable. `glyphMap` is only ever used as a
  * TypeScript type (`keyof typeof Ionicons.glyphMap`), which is erased before
  * this mock exists, so an empty object is enough.
+ *
+ * The app imports the per-set entry point (`@expo/vector-icons/Ionicons`), not
+ * the package root, so that is the module mocked here.
  */
-jest.mock('@expo/vector-icons', () => {
+jest.mock('@expo/vector-icons/Ionicons', () => {
   const React = require('react');
   const { View } = require('react-native');
 
-  const iconSet = (displayName) => {
-    const Icon = (props) => React.createElement(View, props);
-    Icon.displayName = displayName;
-    Icon.glyphMap = {};
-    return Icon;
-  };
+  const Ionicons = (props) => React.createElement(View, props);
+  Ionicons.displayName = 'Ionicons';
+  Ionicons.glyphMap = {};
 
-  return {
-    Ionicons: iconSet('Ionicons'),
-    MaterialIcons: iconSet('MaterialIcons'),
-    MaterialCommunityIcons: iconSet('MaterialCommunityIcons'),
-    Feather: iconSet('Feather'),
-    FontAwesome: iconSet('FontAwesome'),
-  };
+  return { __esModule: true, default: Ionicons };
 });
 
 /**
