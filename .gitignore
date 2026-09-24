@@ -51,3 +51,11 @@ supabase/.temp/
 
 # Jest
 coverage/
+
+# Design references — kept on disk so Claude Code can read them, never
+# committed. These are screenshots of another company's app; they are a working
+# reference, not ours to redistribute.
+docs/design/breeze-reference/
+
+# The Offtexts scheduling mockups are ours, so they DO belong in the repo.
+# docs/design/offtexts-flow/ is intentionally not ignored.
