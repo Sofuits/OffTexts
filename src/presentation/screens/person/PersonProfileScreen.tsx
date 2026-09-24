@@ -25,9 +25,9 @@ type Props = RootStackScreenProps<'PersonProfile'>;
  * profile. That is not redundancy: it lets the header show the right name
  * immediately instead of "Loading…" for the first few hundred milliseconds.
  */
-export function PersonProfileScreen({ route }: Props): React.JSX.Element {
+export function PersonProfileScreen({ route, navigation }: Props): React.JSX.Element {
   const theme = useTheme();
-  const { personId } = route.params;
+  const { personId, personName, matchId } = route.params;
   const profile = useProfileById(personId);
 
   return (
@@ -94,11 +94,29 @@ export function PersonProfileScreen({ route }: Props): React.JSX.Element {
             </View>
 
             <Spacer size={32} />
-            <Button label="Request a meet" fullWidth disabled />
-            <Spacer size={12} />
-            <AppText variant="caption" color="textSecondary" align="center">
-              Requesting a meet arrives with the meets feature.
-            </AppText>
+            {/*
+              The button appears only with a match, because only a match
+              permits a booking — `api_v1.request_meeting` looks the match up
+              under the caller's own RLS and refuses without one. Offering the
+              button anyway would be offering a 403.
+            */}
+            {matchId ? (
+              <Button
+                label="Arrange a meet"
+                fullWidth
+                size="lg"
+                onPress={() => navigation.navigate('RequestMeet', { matchId, personName })}
+                testID="button-request-meet"
+              />
+            ) : (
+              <>
+                <Button label="Arrange a meet" fullWidth size="lg" disabled />
+                <Spacer size={12} />
+                <AppText variant="caption" color="textSecondary" align="center">
+                  You can book a table once you have both said yes.
+                </AppText>
+              </>
+            )}
           </>
         )}
       </QueryBoundary>

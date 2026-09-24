@@ -1,10 +1,17 @@
-import type { MeetIntent, Person, PersonId } from '@/domain/entities';
+import type { Gender, MeetIntent, Person, PersonId } from '@/domain/entities';
 import type { Result } from './Result';
 
 /** The fields a member may change about themselves. */
 export type ProfileUpdate = {
   name?: string;
   age?: number;
+  /**
+   * ISO date. Preferred over `age`, which the database derives from it — an age
+   * written once is wrong for a few weeks every year, and nothing goes back to
+   * correct it.
+   */
+  dateOfBirth?: string;
+  gender?: Gender;
   headline?: string;
   bio?: string;
   city?: string;
@@ -28,9 +35,7 @@ export interface ProfileRepository {
 
   updateMyProfile(update: ProfileUpdate): Promise<Result<Person>>;
 
-  /**
-   * Uploads a photo and returns its URL.
-   * @param localUri A file:// URI from the image picker.
-   */
-  uploadPhoto(localUri: string): Promise<Result<string>>;
+  // Photos are NOT here. They are files, with their own moderation state and
+  // their own order, and an `uploadPhoto` that returned a URL left the caller
+  // holding something it could not store. See `PhotoRepository`.
 }

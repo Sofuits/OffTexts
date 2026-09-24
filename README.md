@@ -124,12 +124,12 @@ src/
 │
 ├── presentation/            Everything React
 │   ├── components/          Reusable. buttons, cards, common, inputs, layouts
-│   ├── screens/             discover, meets, person, profile
+│   ├── screens/             auth, onboarding, today, meets, person, profile, discover
 │   ├── hooks/               queries/ (React Query) + useTheme, useConnectivity
 │   └── stores/              Zustand, for client state only
 │
 ├── domain/                  The centre. No React, no SDK, no HTTP
-│   ├── entities/            Person, Meet, Review, Session + their rules
+│   ├── entities/            Person, Photo, Matching, Preferences, Meet, Venue, Review
 │   ├── repositories/        INTERFACES only, plus Result and AppError
 │   └── usecases/            Only where a rule exists — see ARCHITECTURE.md
 │
@@ -174,23 +174,46 @@ Full reasoning, including where this deviates from a textbook layout and why:
 ```text
 RootNavigator  (native stack)
 │
-├── RootTabs  (bottom tabs, no header)
+├── SignIn                    when signed out
+│
+├── RootTabs → AuthedArea     when signed in
 │   │
-│   ├── Profile          Tab 1 — your own profile
-│   │      └── "Edit profile" ─────────────► EditProfile
+│   ├── Onboarding            if the profile has never been filled in
+│   │                         a dozen questions, one screen, one write at the end
 │   │
-│   ├── Discover         Tab 2 — CENTRE, opens first
-│   │      └── tap a profile card ────────► PersonProfile { personId, personName }
-│   │
-│   └── ScheduledMeets   Tab 3 — two sections
-│          ├── Upcoming → tap ────────────► MeetDetails { meetId }
-│          └── History  → tap ────────────► RatingsReviews { meetId, personName }
+│   └── BottomTabs  (no header)
+│       │
+│       ├── Profile          Tab 1 — your own profile, photos, who you see
+│       │      ├── "Edit profile" ─────────► EditProfile
+│       │      └── "Browse everyone else" ─► Browse
+│       │
+│       ├── Today            Tab 2 — CENTRE, opens first
+│       │      ├── three candidates, one at a time, like or pass
+│       │      ├── tap the card ──────────► PersonProfile { personId, personName }
+│       │      └── a match ───────────────► RequestMeet { matchId, personName }
+│       │
+│       └── ScheduledMeets   Tab 3 — matches, then upcoming, then history
+│              ├── Matches  → tap ────────► PersonProfile { …, matchId }
+│              ├── Upcoming → tap ────────► MeetDetails { meetId }
+│              └── History  → tap ────────► RatingsReviews { meetId, personName }
 │
 ├── EditProfile
-├── PersonProfile
+├── PersonProfile             offers a booking only when a matchId came with it
+├── RequestMeet               café → day → time, then replace() to MeetDetails
 ├── MeetDetails
-└── RatingsReviews
+├── RatingsReviews
+└── Browse                    everyone else; deliberately not a tab
 ```
+
+**Three tabs, not four.** Every candidate for a fourth — a browsable feed, a
+"likes you" screen, a messages tab — is something Offtexts deliberately does
+not have, and a tab bar is the loudest possible place to promise one. `Browse`
+exists, but it lives one level down off the profile screen.
+
+**Onboarding is a branch, not a route.** As a pushable screen it would need
+somebody to decide to push it, somebody to remember to pop it, and a back
+gesture that lands on a half-built profile. `AuthedArea` renders one of two
+things instead, and finishing the wizard changes the answer.
 
 The detail screens sit on the **stack**, not inside the tabs. That is what makes
 them cover the tab bar when pushed, which is the expected behaviour for a
@@ -375,40 +398,53 @@ Built in stages on purpose — asking for auth, every screen, the database, the
 UI and the architecture in one go produces code that is inconsistent in all of
 them.
 
-| Stage | What                                                        | Status   |
-| ----- | ----------------------------------------------------------- | -------- |
-| 1     | Architecture, infrastructure, DI, React Query, tests        | **done** |
-| 2     | Authentication — sign-in screen, onboarding, session gating | next     |
-| 3     | Profile — real reads and writes, photo upload               |          |
-| 4     | Discover — paging, filters                                  |          |
-| 5     | Meets — requesting, cancelling, reviews                     |          |
-| 6     | Analytics, Sentry, push, offline mutation queue, polish     |          |
+| Stage | What                                                            | Status   |
+| ----- | --------------------------------------------------------------- | -------- |
+| 1     | Architecture, infrastructure, DI, React Query, tests            | **done** |
+| 2     | Authentication — sign-up, sign-in, password reset, session gate | **done** |
+| 3     | Database, RLS, storage, the `api_v1` contract, typed clients    | **done** |
+| 4     | Onboarding, Today, matches, profile, booking a table            | **done** |
+| 5     | Payments — Razorpay, refunds, cancellation rules                | blocked  |
+| 6     | Analytics, Sentry, push, offline mutation queue, polish         |          |
 
-### What Supabase still needs, before stage 2
-
-None of this is app code:
-
-1. **Tables** — `profiles`, `meets`, `reviews`, matching
-   `src/infrastructure/supabase/database.types.ts`.
-2. **Row Level Security on every table.** Not optional — see
-   [ARCHITECTURE.md](ARCHITECTURE.md#security).
-3. **A storage bucket** named `profile-photos`.
-4. **Generated types**, replacing the hand-written file:
-   ```bash
-   npx supabase gen types typescript --project-id <id> > src/infrastructure/supabase/database.types.ts
-   ```
+Stage 5 is blocked on product decisions rather than on code: who pays for a
+meeting, whether there is a prepaid balance, and what a late cancellation
+costs. The schema is already built for all three — `payments`, `refunds` and
+`meets.booking_fee_paise` exist — and nothing pretends money has changed hands
+until they are wired up.
 
 ### Known placeholders
 
-- **No sign-in screen.** `InMemoryAuthRepository` reports a signed-in session so
-  the app is usable; it accepts any credentials and must never be reachable in a
-  build that has Supabase configured. The container guarantees that.
-- **`EditProfile` renders disabled fields** and saves nothing.
+- **`EditProfile` cannot change your birthday or gender.** Onboarding sets both
+  and nothing else writes them; the database derives `age` from the date of
+  birth by trigger, so a member who mistyped it needs an admin today.
+- **Photo moderation has no admin screen yet.** Photos upload and sit at
+  `pending`, visible only to their owner, until a moderator approves them —
+  which today means an `update` in the SQL editor.
+- **Push notifications are an interface with no implementation.** The
+  onboarding question stores the answer; nothing sends anything yet.
 - **`shared/constants/seedData.ts`** is the only data source with no backend.
   Deleting it is how you find everything still running on fake records.
 - **Sentry and analytics are interfaces with no implementation.** The
   integration points are in `infrastructure/logging` and
   `infrastructure/analytics`.
+
+### Demo sign-in
+
+Sign-in is somebody else's piece of work, and everything past the auth gate
+needs a real session — every RLS policy on the database requires an
+authenticated caller. So the sign-in screen offers a one-tap **Demo sign-in**
+when `EXPO_PUBLIC_DEMO_EMAIL` and `EXPO_PUBLIC_DEMO_PASSWORD` are set.
+
+It signs in properly: real session, real RLS, real rows. That is what
+distinguishes it from `EXPO_PUBLIC_DEV_SKIP_AUTH`, which forces the in-memory
+repositories and exercises no policy at all.
+
+> Both values ship inside the bundle and are readable by anyone who downloads
+> the app. They may only ever point at a **throwaway test account** — never a
+> real member's, never one with staff access, never a password used anywhere
+> else. `src/shared/config/env.ts` refuses to honour them when
+> `EXPO_PUBLIC_ENVIRONMENT=production`, so the button cannot ship.
 
 ---
 

@@ -19,6 +19,24 @@ export const queryKeys = {
     suggestions: (city?: string) =>
       [...queryKeys.discover.all, 'suggestions', city ?? 'any'] as const,
   },
+  matching: {
+    all: ['matching'] as const,
+    /**
+     * Not keyed by date. The repository asks for "today" and the answer changes
+     * when the day does; putting the date in the key would leave yesterday's
+     * set cached under its own key for ever, on a phone that is never closed.
+     */
+    today: () => [...queryKeys.matching.all, 'today'] as const,
+    matches: () => [...queryKeys.matching.all, 'matches'] as const,
+  },
+  photos: {
+    all: ['photos'] as const,
+    mine: () => [...queryKeys.photos.all, 'mine'] as const,
+  },
+  preferences: {
+    all: ['preferences'] as const,
+    mine: () => [...queryKeys.preferences.all, 'mine'] as const,
+  },
   meets: {
     all: ['meets'] as const,
     scheduled: () => [...queryKeys.meets.all, 'scheduled'] as const,
@@ -27,5 +45,9 @@ export const queryKeys = {
   reviews: {
     all: ['reviews'] as const,
     forMeet: (meetId: string) => [...queryKeys.reviews.all, 'forMeet', meetId] as const,
+  },
+  venues: {
+    all: ['venues'] as const,
+    list: (city?: string) => [...queryKeys.venues.all, 'list', city ?? 'any'] as const,
   },
 } as const;

@@ -31,7 +31,11 @@ export function ScreenHeader({
 
   return (
     <View style={styles.row}>
-      {showLogo ? <Logo size={40} style={{ marginRight: theme.spacing[12] }} /> : null}
+      {/* Nudged down so the mark's optical centre sits on the title's cap
+          height rather than on the top of its line box. */}
+      {showLogo ? (
+        <Logo size={40} style={{ marginRight: theme.spacing[12], marginTop: theme.spacing[2] }} />
+      ) : null}
 
       <View style={styles.text}>
         <AppText variant="heading">{title}</AppText>
@@ -48,6 +52,9 @@ export function ScreenHeader({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center' },
+  // `flex-start`, not `center`. Centring looks right next to a one-line
+  // subtitle and wrong next to a two-line one — the mark drifts down beside the
+  // subtitle instead of sitting with the title. Screens have both.
+  row: { flexDirection: 'row', alignItems: 'flex-start' },
   text: { flex: 1 },
 });

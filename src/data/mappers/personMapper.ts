@@ -1,5 +1,7 @@
 import {
+  GENDERS,
   MEET_INTENTS,
+  type Gender,
   type MeetIntent,
   type Person,
   type VerificationStatus,
@@ -27,6 +29,15 @@ const VERIFICATIONS: VerificationStatus[] = ['unverified', 'pending', 'verified'
 const toVerification = (value: string): VerificationStatus =>
   (VERIFICATIONS as string[]).includes(value) ? (value as VerificationStatus) : 'unverified';
 
+/**
+ * Null, or a value the app has never heard of, both become absent.
+ *
+ * Same forgiveness as `toVerification`: a gender added by a later migration
+ * should leave one field blank on one card, not throw and blank the list.
+ */
+const toGender = (value: string | null): Gender | undefined =>
+  value !== null && (GENDERS as readonly string[]).includes(value) ? (value as Gender) : undefined;
+
 export function toPerson(row: ProfileRow): Person {
   return {
     // Also the auth user id — profiles are keyed by it. See ProfileRow.
@@ -34,6 +45,8 @@ export function toPerson(row: ProfileRow): Person {
     name: row.name,
     // The column is nullable; the entity says "absent", not "null".
     ...(row.age === null ? {} : { age: row.age }),
+    ...(row.date_of_birth === null ? {} : { dateOfBirth: row.date_of_birth }),
+    ...(toGender(row.gender) === undefined ? {} : { gender: toGender(row.gender) as Gender }),
     headline: row.headline,
     ...(row.bio === null ? {} : { bio: row.bio }),
     city: row.city,
@@ -50,6 +63,8 @@ type ProfileUpdateRow = ProfileUpdate;
 export function toProfileUpdateRow(update: {
   name?: string;
   age?: number;
+  dateOfBirth?: string;
+  gender?: Gender;
   headline?: string;
   bio?: string;
   city?: string;
@@ -59,6 +74,10 @@ export function toProfileUpdateRow(update: {
   const row: ProfileUpdateRow = {};
   if (update.name !== undefined) row.name = update.name;
   if (update.age !== undefined) row.age = update.age;
+  // The database derives `age` from this by trigger, so writing both would be
+  // writing the same fact twice and inviting them to disagree.
+  if (update.dateOfBirth !== undefined) row.date_of_birth = update.dateOfBirth;
+  if (update.gender !== undefined) row.gender = update.gender;
   if (update.headline !== undefined) row.headline = update.headline;
   if (update.bio !== undefined) row.bio = update.bio;
   if (update.city !== undefined) row.city = update.city;

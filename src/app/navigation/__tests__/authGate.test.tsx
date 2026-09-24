@@ -3,8 +3,14 @@ import { render, screen, waitFor } from '@testing-library/react-native';
 import { createTestContainer } from '@/app/di';
 import { RootNavigator } from '@/app/navigation';
 import { AppProviders, createTestQueryClient } from '@/app/providers';
-import type { AuthState, Session } from '@/domain/entities';
-import { success, type AuthRepository } from '@/domain/repositories';
+import type { AuthState, Person, Session } from '@/domain/entities';
+import {
+  AppError,
+  failure,
+  success,
+  type AuthRepository,
+  type ProfileRepository,
+} from '@/domain/repositories';
 
 /**
  * The authentication gate.
@@ -36,8 +42,36 @@ function authIn(state: AuthState): AuthRepository {
   };
 }
 
-function renderWith(auth: AuthRepository) {
-  const container = createTestContainer({ repositories: { auth } });
+/**
+ * A profile as the signup trigger leaves it: a row exists, nothing is answered.
+ *
+ * `handle_new_user()` writes `name: 'New member'`, `city: 'Pune'` and nothing
+ * else, so the existence of a profile says nothing about whether somebody has
+ * been through onboarding. This is the shape that has to reach the wizard.
+ */
+const FRESH: Person = {
+  id: 'person-1',
+  name: 'New member',
+  headline: '',
+  city: 'Pune',
+  photoUrls: [],
+  interests: [],
+  intents: [],
+  verification: 'unverified',
+};
+
+function profileReturning(person: Person): ProfileRepository {
+  return {
+    getMyProfile: async () => success(person),
+    getProfileById: async () => success(person),
+    updateMyProfile: async () => success(person),
+  };
+}
+
+function renderWith(auth: AuthRepository, profile?: ProfileRepository) {
+  const container = createTestContainer({
+    repositories: profile ? { auth, profile } : { auth },
+  });
   return render(
     <AppProviders container={container} queryClient={createTestQueryClient()}>
       <RootNavigator />
@@ -71,7 +105,7 @@ describe('auth gate', () => {
     // The tab screens must not be mounted underneath — if they are, a back
     // gesture reaches them.
     await waitFor(() => {
-      expect(screen.queryByTestId('screen-discover')).toBeNull();
+      expect(screen.queryByTestId('screen-today')).toBeNull();
       expect(screen.queryByTestId('screen-profile')).toBeNull();
     });
   });
@@ -79,12 +113,39 @@ describe('auth gate', () => {
   it('shows the app when signed in, and not the sign-in screen', async () => {
     renderWith(authIn({ status: 'signedIn', session: SESSION }));
 
-    expect(await screen.findByTestId('screen-discover')).toBeTruthy();
+    // Today, not the wizard: the seeded profile has a date of birth and an
+    // intent, so `hasCompletedOnboarding` is true. See AuthedArea.
+    expect(await screen.findByTestId('screen-today')).toBeTruthy();
     expect(screen.queryByTestId('screen-sign-in')).toBeNull();
+    expect(screen.queryByTestId('onboarding-step-1')).toBeNull();
 
-    // Wait for Discover's query to settle before the test ends. Without this
-    // the in-memory repository resolves after teardown and React warns about a
+    // Wait for Today's query to settle before the test ends. Without this the
+    // in-memory repository resolves after teardown and React warns about a
     // state update outside act() — noise that hides a real warning later.
-    expect(await screen.findByText('Aanya Rao, 27')).toBeTruthy();
+    expect(await screen.findByText('Person 1 of 3')).toBeTruthy();
+  });
+
+  it('sends a member with an unfinished profile to the wizard, not the tabs', async () => {
+    renderWith(authIn({ status: 'signedIn', session: SESSION }), profileReturning(FRESH));
+
+    expect(await screen.findByTestId('onboarding-step-1')).toBeTruthy();
+    // Not the tabs underneath either. A half-built profile must not be able to
+    // reach Today, because the candidate rules would have nothing to match on.
+    expect(screen.queryByTestId('screen-today')).toBeNull();
+  });
+
+  it('shows the app rather than the wizard when the profile cannot be read', async () => {
+    const offline: ProfileRepository = {
+      getMyProfile: async () => failure(new AppError('network', 'No connection.')),
+      getProfileById: async () => failure(new AppError('network', 'No connection.')),
+      updateMyProfile: async () => failure(new AppError('network', 'No connection.')),
+    };
+
+    renderWith(authIn({ status: 'signedIn', session: SESSION }), offline);
+
+    // A network error is not evidence of an incomplete profile, and sending
+    // somebody through onboarding again would write over what they have.
+    expect(await screen.findByTestId('screen-today')).toBeTruthy();
+    expect(screen.queryByTestId('onboarding-step-1')).toBeNull();
   });
 });

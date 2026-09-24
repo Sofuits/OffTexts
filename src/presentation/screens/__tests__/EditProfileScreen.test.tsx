@@ -31,7 +31,10 @@ const ME: Person = {
   bio: 'Books, long walks, fintech.',
   city: 'Pune',
   photoUrls: [],
-  interests: ['Books'],
+  // Three, because that is the floor the form enforces — the same one the
+  // onboarding wizard uses. A fixture with fewer makes every save fail
+  // validation for a reason the test is not about.
+  interests: ['Books', 'Running', 'Design'],
   intents: ['networking'],
   verification: 'verified',
 };
@@ -50,7 +53,6 @@ function fakeProfiles(
       updates.push(update);
       return success({ ...ME, ...update });
     },
-    uploadPhoto: async (): Promise<Result<string>> => success('https://example.test/photo.jpg'),
     ...overrides,
   } as ProfileRepository & { updates: ProfileUpdate[] };
 }

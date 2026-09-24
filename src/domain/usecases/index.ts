@@ -14,6 +14,12 @@
  * Plain reads go straight from a query hook to the repository. Both are behind
  * the same interface, so decoupling is unaffected either way.
  */
+export {
+  ageOn,
+  CompleteOnboarding,
+  LIMITS as ONBOARDING_LIMITS,
+  type OnboardingAnswers,
+} from './CompleteOnboarding';
 export { GetScheduledMeets, type ScheduledMeets } from './GetScheduledMeets';
 export { RequestMeet } from './RequestMeet';
 export { RequestPasswordReset } from './RequestPasswordReset';

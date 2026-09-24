@@ -26,7 +26,7 @@ const meet = (id: string, offsetHours: number, status: Meet['status']): Meet => 
 const repositoryReturning = (meets: Meet[]): MeetRepository => ({
   listMeets: async () => success(meets),
   getMeetById: async () => failure(new AppError('notFound', 'not used')),
-  requestMeet: async () => failure(new AppError('notFound', 'not used')),
+  requestMeeting: async () => failure(new AppError('notFound', 'not used')),
   cancelMeet: async () => failure(new AppError('notFound', 'not used')),
 });
 

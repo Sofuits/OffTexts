@@ -22,6 +22,8 @@ type Extra = {
   enableGoogleAuth?: string | boolean;
   sentryDsn?: string;
   enableAnalytics?: string | boolean;
+  demoEmail?: string;
+  demoPassword?: string;
 };
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Extra;
@@ -43,6 +45,33 @@ const environment = (readString(extra.environment) || 'development') as AppEnvir
 const supabaseUrl = readString(extra.supabaseUrl);
 const supabaseAnonKey = readString(extra.supabaseAnonKey);
 
+const hasSupabase = supabaseUrl.length > 0 && supabaseAnonKey.length > 0;
+
+/**
+ * Credentials for a one-tap demo sign-in. Non-production only.
+ *
+ * READ THIS BEFORE SETTING THEM.
+ *
+ * Everything on `extra` ships inside the bundle. A password here is readable
+ * by anyone who downloads the app, so it may only ever be a **throwaway test
+ * account created for this purpose** — never a real member's, never an
+ * account with staff access, and never one whose password is used anywhere
+ * else. Treat the value as public from the moment it is written down.
+ *
+ * It exists because sign-in is somebody else's piece of work and the rest of
+ * the app is behind it. Everything past the auth gate needs a real session —
+ * every Row Level Security policy on the database requires an authenticated
+ * caller — so without this, reviewing the screens means creating an account by
+ * hand first.
+ *
+ * `DEV_SKIP_AUTH` is NOT the same thing and is not a substitute. It forces the
+ * in-memory repositories, so nothing is read from or written to Supabase and
+ * no policy is ever exercised. This signs in properly: real session, real RLS,
+ * real rows. That is the point of it.
+ */
+const demoEmail = readString(extra.demoEmail);
+const demoPassword = readString(extra.demoPassword);
+
 export const env = {
   supabaseUrl,
   supabaseAnonKey,
@@ -53,7 +82,7 @@ export const env = {
    * so a developer can clone, `npm install`, `npm start` and have a working app
    * with no backend account at all. Nothing else in the codebase branches on it.
    */
-  hasSupabase: supabaseUrl.length > 0 && supabaseAnonKey.length > 0,
+  hasSupabase,
 
   /**
    * Start the app already signed in, against in-memory data. Development only.
@@ -89,6 +118,22 @@ export const env = {
    * change, and it means nobody has to remember to delete a placeholder.
    */
   enableGoogleAuth: readBoolean(extra.enableGoogleAuth, false),
+
+  demoEmail,
+  demoPassword,
+  /**
+   * Whether to offer the demo button.
+   *
+   * Three conditions, all of them load-bearing. `environment !== 'production'`
+   * is the one that matters most: a forgotten `.env` must not be able to ship
+   * an app with a sign-in shortcut on its first screen, and a flag that can
+   * only be wrong in development is worth having where one that can be wrong in
+   * production is a liability. Supabase has to be configured because the whole
+   * point is a real session. And both halves of the credential have to be
+   * present, because half of one is a button that fails on tap.
+   */
+  hasDemoSignIn:
+    environment !== 'production' && hasSupabase && demoEmail.length > 0 && demoPassword.length > 0,
 
   sentryDsn: readString(extra.sentryDsn),
   environment,

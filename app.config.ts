@@ -76,5 +76,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     enableGoogleAuth: process.env.EXPO_PUBLIC_ENABLE_GOOGLE_AUTH,
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
     enableAnalytics: process.env.EXPO_PUBLIC_ENABLE_ANALYTICS,
+    // A one-tap sign-in for reviewing the app while the real sign-in screen is
+    // being built by somebody else. These SHIP IN THE BUNDLE and are readable
+    // by anyone who downloads it, so they may only ever point at a throwaway
+    // test account — see the long comment in src/shared/config/env.ts.
+    // src/shared/config/env.ts refuses to honour them when
+    // EXPO_PUBLIC_ENVIRONMENT is production, so they cannot ship enabled.
+    demoEmail: process.env.EXPO_PUBLIC_DEMO_EMAIL,
+    demoPassword: process.env.EXPO_PUBLIC_DEMO_PASSWORD,
   },
 });

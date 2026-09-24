@@ -7,13 +7,15 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React, { useMemo } from 'react';
 
 import { useTheme } from '@/presentation/hooks/useTheme';
-import { BottomTabs } from '@/app/navigation/BottomTabs';
+import { AuthedArea } from '@/app/navigation/AuthedArea';
 import type { RootStackParamList } from '@/app/navigation/types';
 import {
+  DiscoverScreen,
   EditProfileScreen,
   MeetDetailsScreen,
   PersonProfileScreen,
   RatingsReviewsScreen,
+  RequestMeetScreen,
   SignInScreen,
   SplashScreen,
 } from '@/presentation/screens';
@@ -27,6 +29,10 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * The tab navigator is one route inside it, so pushing a detail screen covers
  * the tab bar — which is what you want for a drill-down, and what you would
  * lose by nesting the stack inside the tabs instead.
+ *
+ * `RootTabs` renders `AuthedArea` rather than the tabs directly, because a
+ * signed-in member who has not filled in a profile gets the onboarding wizard
+ * in that slot. See AuthedArea for why that is a branch and not a route.
  */
 export function RootNavigator(): React.JSX.Element {
   const theme = useTheme();
@@ -79,7 +85,7 @@ export function RootNavigator(): React.JSX.Element {
           member ends up able to swipe back into the app.
         */}
         {isSignedIn ? (
-          <Stack.Screen name="RootTabs" component={BottomTabs} options={{ headerShown: false }} />
+          <Stack.Screen name="RootTabs" component={AuthedArea} options={{ headerShown: false }} />
         ) : (
           <Stack.Screen name="SignIn" component={SignInScreen} options={{ headerShown: false }} />
         )}
@@ -96,6 +102,11 @@ export function RootNavigator(): React.JSX.Element {
           options={({ route }) => ({ title: route.params.personName })}
         />
         <Stack.Screen
+          name="RequestMeet"
+          component={RequestMeetScreen}
+          options={{ title: 'Book a table' }}
+        />
+        <Stack.Screen
           name="MeetDetails"
           component={MeetDetailsScreen}
           options={{ title: 'Meet details' }}
@@ -104,6 +115,11 @@ export function RootNavigator(): React.JSX.Element {
           name="RatingsReviews"
           component={RatingsReviewsScreen}
           options={{ title: 'Ratings & reviews' }}
+        />
+        <Stack.Screen
+          name="Browse"
+          component={DiscoverScreen}
+          options={{ title: 'Everyone else' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -1,24 +1,37 @@
 import {
   InMemoryAuthRepository,
   InMemoryDiscoverRepository,
+  InMemoryMatchingRepository,
   InMemoryMeetRepository,
+  InMemoryPhotoRepository,
+  InMemoryPreferencesRepository,
   InMemoryProfileRepository,
   InMemoryReviewRepository,
+  InMemoryVenueRepository,
   SupabaseAuthRepository,
   SupabaseDiscoverRepository,
+  SupabaseMatchingRepository,
   SupabaseMeetRepository,
+  SupabasePhotoRepository,
+  SupabasePreferencesRepository,
   SupabaseProfileRepository,
   SupabaseReviewRepository,
+  SupabaseVenueRepository,
 } from '@/data/repositories';
 import { MeetLocalDataSource, ProfileLocalDataSource } from '@/data/datasources/local';
 import type {
   AuthRepository,
   DiscoverRepository,
+  MatchingRepository,
   MeetRepository,
+  PhotoRepository,
+  PreferencesRepository,
   ProfileRepository,
   ReviewRepository,
+  VenueRepository,
 } from '@/domain/repositories';
 import {
+  CompleteOnboarding,
   GetScheduledMeets,
   RequestMeet,
   RequestPasswordReset,
@@ -30,6 +43,11 @@ import {
 } from '@/domain/usecases';
 import { NoopAnalytics, type Analytics } from '@/infrastructure/analytics';
 import { ConsoleLogger, SentryLogger, type Logger } from '@/infrastructure/logging';
+import {
+  ExpoImagePicker,
+  UnavailableImagePicker,
+  type ImagePickerService,
+} from '@/infrastructure/media';
 import {
   AlwaysOnlineMonitor,
   NetInfoConnectivityMonitor,
@@ -74,8 +92,12 @@ export type Container = {
     auth: AuthRepository;
     profile: ProfileRepository;
     discover: DiscoverRepository;
+    matching: MatchingRepository;
     meets: MeetRepository;
+    photos: PhotoRepository;
+    preferences: PreferencesRepository;
     reviews: ReviewRepository;
+    venues: VenueRepository;
   };
   useCases: {
     signIn: SignIn;
@@ -83,6 +105,7 @@ export type Container = {
     requestPasswordReset: RequestPasswordReset;
     signInWithGoogle: SignInWithGoogle;
     signOut: SignOut;
+    completeOnboarding: CompleteOnboarding;
     getScheduledMeets: GetScheduledMeets;
     requestMeet: RequestMeet;
     submitReview: SubmitReview;
@@ -91,6 +114,7 @@ export type Container = {
     logger: Logger;
     analytics: Analytics;
     notifications: NotificationService;
+    imagePicker: ImagePickerService;
     connectivity: ConnectivityMonitor;
     secureStore: KeyValueStore;
     store: KeyValueStore;
@@ -129,18 +153,37 @@ function buildSupabaseRepositories(
     auth: new SupabaseAuthRepository(client, logger, runOAuthFlow, passwordResetRedirect()),
     profile: new SupabaseProfileRepository(client, profileCache, connectivity, logger),
     discover: new SupabaseDiscoverRepository(client),
+    matching: new SupabaseMatchingRepository(client),
     meets: new SupabaseMeetRepository(client, meetCache, connectivity, logger),
+    photos: new SupabasePhotoRepository(client),
+    preferences: new SupabasePreferencesRepository(client),
     reviews: new SupabaseReviewRepository(client),
+    venues: new SupabaseVenueRepository(client),
   };
 }
 
 function buildInMemoryRepositories(startSignedIn = false): Container['repositories'] {
+  // Matching and venues are built first because the fake meet repository needs
+  // to resolve a match id and a venue id the way the real one does server-side
+  // inside `api_v1.request_meeting`. The lookups are passed in rather than
+  // imported, so the fakes do not depend on one another — this function stays
+  // the only place that knows how they connect.
+  const matching = new InMemoryMatchingRepository();
+  const venues = new InMemoryVenueRepository();
+
   return {
     auth: new InMemoryAuthRepository({ startSignedIn }),
     profile: new InMemoryProfileRepository(),
     discover: new InMemoryDiscoverRepository(),
-    meets: new InMemoryMeetRepository(),
+    matching,
+    meets: new InMemoryMeetRepository({
+      findMatch: (id) => matching.findMatch(id),
+      findVenue: (id) => venues.findVenue(id),
+    }),
+    photos: new InMemoryPhotoRepository(),
+    preferences: new InMemoryPreferencesRepository(),
     reviews: new InMemoryReviewRepository(),
+    venues,
   };
 }
 
@@ -148,6 +191,7 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
   const logger = overrides.services?.logger ?? buildLogger();
   const analytics = overrides.services?.analytics ?? new NoopAnalytics();
   const notifications = overrides.services?.notifications ?? new NoopNotificationService();
+  const imagePicker = overrides.services?.imagePicker ?? new ExpoImagePicker();
   const connectivity = overrides.services?.connectivity ?? new NetInfoConnectivityMonitor();
   const secureStore = overrides.services?.secureStore ?? new SecureKeyValueStore(logger);
   const store = overrides.services?.store ?? new AsyncStorageStore(logger);
@@ -201,11 +245,20 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
       signOut: new SignOut(repositories.auth, async () => {
         await Promise.all(KEYS_TO_CLEAR_ON_SIGN_OUT.map((key) => store.removeItem(key)));
       }),
+      completeOnboarding: new CompleteOnboarding(repositories.profile, repositories.preferences),
       getScheduledMeets: new GetScheduledMeets(repositories.meets),
       requestMeet: new RequestMeet(repositories.meets),
       submitReview: new SubmitReview(repositories.reviews),
     },
-    services: { logger, analytics, notifications, connectivity, secureStore, store },
+    services: {
+      logger,
+      analytics,
+      notifications,
+      imagePicker,
+      connectivity,
+      secureStore,
+      store,
+    },
     backend,
     dispose: () => teardown.forEach((stop) => stop()),
   };
@@ -234,6 +287,9 @@ export function createTestContainer(overrides: ContainerOverrides = {}): Contain
     ...overrides,
     services: {
       logger: silent,
+      // No camera roll under Jest. The UI reads `isAvailable` and hides the
+      // control, so a test never has to mock a native picker.
+      imagePicker: new UnavailableImagePicker(),
       connectivity: new AlwaysOnlineMonitor(),
       secureStore: new InMemoryStore(),
       store: new InMemoryStore(),

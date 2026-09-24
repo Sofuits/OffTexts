@@ -132,6 +132,32 @@ export function SignInScreen(): React.JSX.Element {
     });
   }, [run, mode, email, password, confirmPassword, signIn, signUp, requestPasswordReset]);
 
+  /**
+   * One tap into a real session, in development only.
+   *
+   * It signs in properly rather than faking anything: a real Supabase session,
+   * real Row Level Security, real rows. That is the difference between this and
+   * `DEV_SKIP_AUTH`, which forces the in-memory repositories and therefore
+   * exercises no policy at all.
+   *
+   * `env.hasDemoSignIn` is false in production no matter what the variables
+   * say, so this cannot ship.
+   */
+  const onDemoPress = useCallback(() => {
+    void run(async () => {
+      const result = await signIn.execute({
+        email: env.demoEmail,
+        password: env.demoPassword,
+      });
+      if (!result.ok) {
+        // Usually means the account has not been created yet, or the password
+        // in `.env` no longer matches it. Said plainly, because the person
+        // reading it is the one who can fix it.
+        setError(`${result.error.message} (demo account: ${env.demoEmail})`);
+      }
+    });
+  }, [run, signIn]);
+
   const onGooglePress = useCallback(() => {
     void run(async () => {
       const result = await signInWithGoogle.execute();
@@ -145,7 +171,10 @@ export function SignInScreen(): React.JSX.Element {
   // The screen is taller than a short phone in sign-up mode, so it scrolls.
   // ScrollView's keyboardShouldPersistTaps is what keeps the submit button
   // responsive while the keyboard is up.
-  const scrollable = mode !== 'signIn';
+  // The demo block adds about 140dp, which is enough to push the submit button
+  // off a short phone in sign-in mode. It is only ever present in development,
+  // so this does not change the production layout at all.
+  const scrollable = mode !== 'signIn' || env.hasDemoSignIn;
 
   const submitDisabled = useMemo(() => {
     if (!email.trim()) return true;
@@ -269,6 +298,31 @@ export function SignInScreen(): React.JSX.Element {
           </>
         ) : null}
 
+        {env.hasDemoSignIn ? (
+          <>
+            <Spacer size={16} />
+            <View style={[styles.divider]}>
+              <AppText variant="caption" color="textDisabled" align="center">
+                development only
+              </AppText>
+            </View>
+            <Spacer size={12} />
+            <Button
+              label="Demo sign-in"
+              variant="outline"
+              onPress={onDemoPress}
+              loading={isBusy}
+              fullWidth
+              testID="button-demo-sign-in"
+            />
+            <Spacer size={8} />
+            <AppText variant="caption" color="textDisabled" align="center">
+              Signs in as {env.demoEmail} against the real database. This button does not exist in a
+              production build.
+            </AppText>
+          </>
+        ) : null}
+
         <Spacer size={20} />
         <View style={styles.links}>
           {mode === 'signIn' ? (
@@ -323,5 +377,6 @@ const styles = StyleSheet.create({
   // so the scrolling variant sizes to its content instead.
   bodyScrolling: { alignItems: 'center', paddingTop: 24, paddingBottom: 24 },
   actions: { paddingBottom: 24 },
+  divider: { alignItems: 'center' },
   links: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });
