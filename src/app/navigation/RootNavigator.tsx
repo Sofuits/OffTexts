@@ -98,6 +98,16 @@ export function RootNavigator(): React.JSX.Element {
           component={AvailabilityStartScreen}
           options={{ headerShown: false }}
         />
+<Stack.Screen
+  name="AvailabilitySelectDates"
+  component={AvailabilitySelectDatesScreen}
+  options={{ headerShown: false }}
+/>
+        <Stack.Screen
+          name="AvailabilityStart"
+          component={AvailabilityStartScreen}
+          options={{ headerShown: false }}
+        />
 
         <Stack.Screen
           name="AvailabilitySelectDates"
