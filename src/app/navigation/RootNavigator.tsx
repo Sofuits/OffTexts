@@ -69,7 +69,7 @@ export function RootNavigator(): React.JSX.Element {
           headerTintColor: theme.colors.textPrimary,
           headerTitleStyle: {
             fontSize: theme.fontSizes.lg,
-            fontWeight: theme.fontWeights.semibold,
+            fontFamily: theme.fontFamilies.semibold,
           },
           headerShadowVisible: false,
           contentStyle: { backgroundColor: theme.colors.background },

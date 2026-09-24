@@ -34,6 +34,11 @@ const palette = {
   ink: '#17201C',
   /** Genuinely secondary text. Use sparingly. */
   inkSoft: '#42524A',
+  /**
+   * Placeholder text only. Lighter than `inkSoft` on purpose: at 8.28:1 a
+   * placeholder read as a typed value. 5.39:1 on white, 5.00 on cream.
+   */
+  placeholder: '#5E6E66',
 
   /** The logo's green. Primary actions, selection, the active tab. */
   forest: '#1C4638',
@@ -85,8 +90,8 @@ export const colors = {
   border: palette.hair,
   /** A stronger outline, for a white control that needs an edge. */
   borderStrong: palette.mute,
-  /** Placeholder text inside inputs. */
-  placeholder: palette.inkSoft,
+  /** Placeholder text inside inputs. Its own entry so it can move apart from `inkSoft`. */
+  placeholder: palette.placeholder,
   /** Blocks standing in for images that are not loaded yet. */
   skeleton: palette.mute,
 

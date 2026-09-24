@@ -59,7 +59,7 @@ export function BottomTabs(): React.JSX.Element {
         },
         tabBarLabelStyle: {
           fontSize: theme.fontSizes.xs,
-          fontWeight: theme.fontWeights.medium,
+          fontFamily: theme.fontFamilies.medium,
           lineHeight: 16,
           flexShrink: 0,
         },

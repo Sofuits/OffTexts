@@ -47,6 +47,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     tsconfigPaths: true,
   },
   plugins: [
+    'expo-font',
+    [
+      // The native launch screen. Cream, so the first frame the OS draws is the
+      // colour the app opens on; the logo sits on it as a deliberate dark tile.
+      'expo-splash-screen',
+      {
+        backgroundColor: '#FCF6EA',
+        image: './assets/icon.png',
+        imageWidth: 120,
+      },
+    ],
     [
       'expo-build-properties',
       {

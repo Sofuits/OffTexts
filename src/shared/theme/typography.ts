@@ -40,18 +40,20 @@ export const lineHeights = {
 } as const;
 
 /**
- * Figtree for all UI, Fraunces 800 for hero moments only. `undefined` is the
- * platform's system font — these stay unset until `expo-font` loads the faces
- * and first render is gated on `useFonts`, because naming an unregistered
- * family makes iOS warn and every platform fall back anyway.
+ * Figtree for all UI, Fraunces 800 for hero moments only. The names are the
+ * keys `app/App.tsx` loads with `useFonts`; the two must stay in step.
+ *
+ * Each weight is its own family, which is why the variants below set a family
+ * and no `fontWeight`. Asking for weight 700 of a family that is already the
+ * bold face makes Android and the web synthesise bold on top of it.
  */
 export const fontFamilies = {
-  regular: undefined,
-  medium: undefined,
-  semibold: undefined,
-  bold: undefined,
+  regular: 'Figtree_400Regular',
+  medium: 'Figtree_500Medium',
+  semibold: 'Figtree_600SemiBold',
+  bold: 'Figtree_700Bold',
   /** Hero moments ONLY. Never an onboarding question. */
-  serif: undefined,
+  serif: 'Fraunces_800ExtraBold',
 } as const satisfies Record<string, TextStyle['fontFamily']>;
 
 const scale = (size: number, ratio: number): number => Math.round(size * ratio);
@@ -60,66 +62,56 @@ export const typography = {
   /** Welcome, done, the match moment. The only serif in the app. */
   hero: {
     fontSize: fontSizes.display,
-    fontWeight: fontWeights.extrabold,
     lineHeight: scale(fontSizes.display, lineHeights.tight),
     fontFamily: fontFamilies.serif,
   },
   display: {
     fontSize: fontSizes.display,
-    fontWeight: fontWeights.bold,
     lineHeight: scale(fontSizes.display, lineHeights.tight),
     fontFamily: fontFamilies.bold,
   },
   /** The onboarding question and screen titles. */
   heading: {
     fontSize: fontSizes.xxl,
-    fontWeight: fontWeights.bold,
     lineHeight: scale(fontSizes.xxl, lineHeights.tight),
     fontFamily: fontFamilies.bold,
   },
   /** Section titles. */
   subheading: {
     fontSize: fontSizes.xl,
-    fontWeight: fontWeights.bold,
     lineHeight: scale(fontSizes.xl, lineHeights.tight),
     fontFamily: fontFamilies.bold,
   },
   /** Option labels, chip labels, list rows. */
   title: {
     fontSize: fontSizes.lg,
-    fontWeight: fontWeights.semibold,
     lineHeight: scale(fontSizes.lg, lineHeights.normal),
     fontFamily: fontFamilies.semibold,
   },
   body: {
     fontSize: fontSizes.md,
-    fontWeight: fontWeights.regular,
     lineHeight: scale(fontSizes.md, lineHeights.normal),
     fontFamily: fontFamilies.regular,
   },
   bodyStrong: {
     fontSize: fontSizes.md,
-    fontWeight: fontWeights.semibold,
     lineHeight: scale(fontSizes.md, lineHeights.normal),
     fontFamily: fontFamilies.semibold,
   },
   /** Field labels. */
   label: {
     fontSize: fontSizes.base,
-    fontWeight: fontWeights.medium,
     lineHeight: scale(fontSizes.base, lineHeights.normal),
     fontFamily: fontFamilies.medium,
   },
   /** Privacy notes and small print — 14, not 12. */
   caption: {
     fontSize: fontSizes.sm,
-    fontWeight: fontWeights.regular,
     lineHeight: scale(fontSizes.sm, lineHeights.normal),
     fontFamily: fontFamilies.regular,
   },
   button: {
     fontSize: fontSizes.md,
-    fontWeight: fontWeights.semibold,
     lineHeight: scale(fontSizes.md, lineHeights.tight),
     fontFamily: fontFamilies.semibold,
   },
