@@ -14,15 +14,32 @@ import type { MeetId, PersonId } from '@/domain/entities';
  * screen call `navigation.navigate('EditProfile')` — a route that lives on the
  * parent stack, not in the tabs.
  */
-
+export type AvailabilityFlowParamList = {
+  AvailabilityStart: undefined;
+  AvailabilitySelectDates: undefined;
+  AvailabilitySharedDates: undefined;
+  AvailabilitySelectTime: { selectedDate: string };
+  AvailabilitySharedTimes: { selectedDate: string };
+  AvailabilityConfirmed: {
+    selectedDate: string;
+    selectedTime: string;
+  };
+};
 export type RootStackParamList = {
   /** The tab navigator, as a single route on the stack. */
   RootTabs: NavigatorScreenParams<BottomTabParamList> | undefined;
   EditProfile: undefined;
   PersonProfile: { personId: PersonId; personName: string };
   MeetDetails: { meetId: MeetId };
-  RatingsReviews: { meetId: MeetId; personName: string };
-};
+  RatingsReviews: { meetId: MeetId; personName: string }; AvailabilityStart: undefined;
+  AvailabilitySelectDates: undefined;
+  AvailabilitySharedDates: undefined;
+  AvailabilitySelectTime: { selectedDate: string };
+  AvailabilitySharedTimes: { selectedDate: string };
+  AvailabilityConfirmed: {
+    selectedDate: string;
+    selectedTime: string;
+};};
 
 export type BottomTabParamList = {
   Profile: undefined;

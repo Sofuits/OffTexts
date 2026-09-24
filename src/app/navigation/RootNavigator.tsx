@@ -10,6 +10,8 @@ import { useTheme } from '@/presentation/hooks/useTheme';
 import { BottomTabs } from '@/app/navigation/BottomTabs';
 import type { RootStackParamList } from '@/app/navigation/types';
 import {
+  AvailabilitySelectDatesScreen,
+  AvailabilityStartScreen,
   EditProfileScreen,
   MeetDetailsScreen,
   PersonProfileScreen,
@@ -63,7 +65,17 @@ export function RootNavigator(): React.JSX.Element {
         }}
       >
         <Stack.Screen name="RootTabs" component={BottomTabs} options={{ headerShown: false }} />
+       <Stack.Screen
+  name="AvailabilityStart"
+  component={AvailabilityStartScreen}
+  options={{ headerShown: false }}
+/>
 
+<Stack.Screen
+  name="AvailabilitySelectDates"
+  component={AvailabilitySelectDatesScreen}
+  options={{ headerShown: false }}
+/>
         <Stack.Screen
           name="EditProfile"
           component={EditProfileScreen}
