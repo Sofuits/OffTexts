@@ -4,14 +4,21 @@ import type { TextStyle } from 'react-native';
  * Type scale.
  *
  * `AppText` takes a `variant` from here, so a screen never sets fontSize or
- * fontWeight by hand. Swapping in a custom font later means changing
- * `fontFamily` in one place per weight.
+ * fontWeight by hand.
+ *
+ * Sizes are Breeze's measured proportions, not its screenshot pixels (716px on
+ * a 393dp device is 1.82px per dp). The one deliberate deviation is `heading`:
+ * Breeze's question is ~25dp; ours is 28 because our strings are longer.
+ *
+ * No letter-spacing anywhere. Breeze's text runs slightly wider than every free
+ * candidate, so tightening it moves the wrong way.
  */
 
 export const fontSizes = {
   xs: 12,
   sm: 14,
-  md: 16,
+  base: 15,
+  md: 17,
   lg: 18,
   xl: 22,
   xxl: 28,
@@ -23,6 +30,7 @@ export const fontWeights = {
   medium: '500',
   semibold: '600',
   bold: '700',
+  extrabold: '800',
 } as const satisfies Record<string, TextStyle['fontWeight']>;
 
 export const lineHeights = {
@@ -32,40 +40,51 @@ export const lineHeights = {
 } as const;
 
 /**
- * Set these once a custom font is added to `src/assets/fonts` and loaded with
- * `expo-font`. `undefined` means the platform's system font, which is the right
- * default until a brand font exists.
+ * Figtree for all UI, Fraunces 800 for hero moments only. `undefined` is the
+ * platform's system font — these stay unset until `expo-font` loads the faces
+ * and first render is gated on `useFonts`, because naming an unregistered
+ * family makes iOS warn and every platform fall back anyway.
  */
 export const fontFamilies = {
   regular: undefined,
   medium: undefined,
   semibold: undefined,
   bold: undefined,
+  /** Hero moments ONLY. Never an onboarding question. */
+  serif: undefined,
 } as const satisfies Record<string, TextStyle['fontFamily']>;
 
 const scale = (size: number, ratio: number): number => Math.round(size * ratio);
 
 export const typography = {
+  /** Welcome, done, the match moment. The only serif in the app. */
+  hero: {
+    fontSize: fontSizes.display,
+    fontWeight: fontWeights.extrabold,
+    lineHeight: scale(fontSizes.display, lineHeights.tight),
+    fontFamily: fontFamilies.serif,
+  },
   display: {
     fontSize: fontSizes.display,
     fontWeight: fontWeights.bold,
     lineHeight: scale(fontSizes.display, lineHeights.tight),
     fontFamily: fontFamilies.bold,
-    letterSpacing: -0.5,
   },
+  /** The onboarding question and screen titles. */
   heading: {
     fontSize: fontSizes.xxl,
     fontWeight: fontWeights.bold,
     lineHeight: scale(fontSizes.xxl, lineHeights.tight),
     fontFamily: fontFamilies.bold,
-    letterSpacing: -0.3,
   },
+  /** Section titles. */
   subheading: {
     fontSize: fontSizes.xl,
-    fontWeight: fontWeights.semibold,
+    fontWeight: fontWeights.bold,
     lineHeight: scale(fontSizes.xl, lineHeights.tight),
-    fontFamily: fontFamilies.semibold,
+    fontFamily: fontFamilies.bold,
   },
+  /** Option labels, chip labels, list rows. */
   title: {
     fontSize: fontSizes.lg,
     fontWeight: fontWeights.semibold,
@@ -84,16 +103,18 @@ export const typography = {
     lineHeight: scale(fontSizes.md, lineHeights.normal),
     fontFamily: fontFamilies.semibold,
   },
+  /** Field labels. */
   label: {
-    fontSize: fontSizes.sm,
+    fontSize: fontSizes.base,
     fontWeight: fontWeights.medium,
-    lineHeight: scale(fontSizes.sm, lineHeights.normal),
+    lineHeight: scale(fontSizes.base, lineHeights.normal),
     fontFamily: fontFamilies.medium,
   },
+  /** Privacy notes and small print — 14, not 12. */
   caption: {
-    fontSize: fontSizes.xs,
+    fontSize: fontSizes.sm,
     fontWeight: fontWeights.regular,
-    lineHeight: scale(fontSizes.xs, lineHeights.normal),
+    lineHeight: scale(fontSizes.sm, lineHeights.normal),
     fontFamily: fontFamilies.regular,
   },
   button: {
@@ -101,7 +122,6 @@ export const typography = {
     fontWeight: fontWeights.semibold,
     lineHeight: scale(fontSizes.md, lineHeights.tight),
     fontFamily: fontFamilies.semibold,
-    letterSpacing: 0.2,
   },
 } as const satisfies Record<string, TextStyle>;
 
