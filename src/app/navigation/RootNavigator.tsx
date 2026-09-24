@@ -10,6 +10,8 @@ import { useTheme } from '@/presentation/hooks/useTheme';
 import { BottomTabs } from '@/app/navigation/BottomTabs';
 import type { RootStackParamList } from '@/app/navigation/types';
 import {
+  AvailabilitySelectDatesScreen,
+  AvailabilityStartScreen,
   EditProfileScreen,
   MeetDetailsScreen,
   PersonProfileScreen,
@@ -71,7 +73,6 @@ export function RootNavigator(): React.JSX.Element {
       >
         {/*
           Conditional groups, not navigate() calls.
-
           React Navigation unmounts the branch that is no longer rendered, so
           signing out cannot leave a signed-in screen underneath, and there is
           no back gesture from the tabs to the sign-in screen. Doing this with
@@ -79,11 +80,36 @@ export function RootNavigator(): React.JSX.Element {
           member ends up able to swipe back into the app.
         */}
         {isSignedIn ? (
-          <Stack.Screen name="RootTabs" component={BottomTabs} options={{ headerShown: false }} />
+          <Stack.Screen
+            name="RootTabs"
+            component={BottomTabs}
+            options={{ headerShown: false }}
+          />
         ) : (
-          <Stack.Screen name="SignIn" component={SignInScreen} options={{ headerShown: false }} />
+          <Stack.Screen
+            name="SignIn"
+            component={SignInScreen}
+            options={{ headerShown: false }}
+          />
         )}
 
+        <Stack.Screen
+          name="AvailabilityStart"
+          component={AvailabilityStartScreen}
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+          name="AvailabilitySelectDates"
+          component={AvailabilitySelectDatesScreen}
+          options={{ headerShown: false }}
+        />
+
+<Stack.Screen
+  name="AvailabilitySelectDates"
+  component={AvailabilitySelectDatesScreen}
+  options={{ headerShown: false }}
+/>
         <Stack.Screen
           name="EditProfile"
           component={EditProfileScreen}

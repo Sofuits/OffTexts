@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { Pressable, StyleSheet, Text } from 'react-native';
 
 import {
   MeetListItem,
@@ -42,6 +43,16 @@ export function ScheduledMeetsScreen({ navigation }: Props): React.JSX.Element {
       <OfflineBanner />
       <ScreenHeader title="Your meets" subtitle="Confirmed tables and past meetups" showLogo />
       <Spacer size={24} />
+      <Pressable
+  onPress={() => navigation.navigate('AvailabilityStart')}
+  style={styles.availabilityButton}
+>
+  <Text style={styles.availabilityButtonText}>
+    Plan a meet
+  </Text>
+</Pressable>
+
+<Spacer size={24} />
 
       <QueryBoundary
         isLoading={meets.isPending}
@@ -93,3 +104,18 @@ export function ScheduledMeetsScreen({ navigation }: Props): React.JSX.Element {
     </ScreenContainer>
   );
 }
+const styles = StyleSheet.create({
+  availabilityButton: {
+    minHeight: 52,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#496653',
+  },
+
+  availabilityButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
