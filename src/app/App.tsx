@@ -10,13 +10,13 @@ import { RootNavigator } from '@/app/navigation';
  * Three lines, because everything else has a home: providers in
  * `app/providers`, routing in `app/navigation`, dependencies in `app/di`.
  *
- * The status bar is `light` because the palette is dark — the word describes
+ * The status bar is `dark` because the palette is light — the word describes
  * the icons, not the background.
  */
 export default function App(): React.JSX.Element {
   return (
     <AppProviders>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <RootNavigator />
     </AppProviders>
   );

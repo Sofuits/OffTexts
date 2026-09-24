@@ -213,7 +213,7 @@ export function ProfileScreen({ navigation }: Props): React.JSX.Element {
                 {person.bio}
               </AppText>
             ) : (
-              <AppText variant="body" color="textDisabled">
+              <AppText variant="body" color="textSecondary">
                 Nothing here yet. A few lines helps more than another photo.
               </AppText>
             )}

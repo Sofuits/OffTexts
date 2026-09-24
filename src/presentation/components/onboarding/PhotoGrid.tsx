@@ -84,7 +84,7 @@ export function PhotoGrid({
                 />
 
                 {pending || rejected ? (
-                  <View style={[styles.stamp, { backgroundColor: 'rgba(11, 23, 22, 0.82)' }]}>
+                  <View style={[styles.stamp, { backgroundColor: theme.colors.scrim }]}>
                     <AppText
                       variant="caption"
                       color={rejected ? 'danger' : 'warning'}

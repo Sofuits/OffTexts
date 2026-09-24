@@ -341,8 +341,12 @@ function EditProfileForm({
       ) : null}
 
       <Spacer size={32} />
+      {/* With nothing edited, pressing this just closes the screen — so it says
+          "Done" and steps back to an outline. A solid button reading "Saved"
+          looked like an action being offered. */}
       <Button
-        label={hasChanges ? 'Save changes' : 'Saved'}
+        label={hasChanges ? 'Save changes' : 'Done'}
+        variant={hasChanges ? 'primary' : 'outline'}
         onPress={onSave}
         loading={update.isPending}
         disabled={update.isPending}

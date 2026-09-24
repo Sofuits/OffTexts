@@ -37,13 +37,13 @@ export function PrivacyNote({ children, visibility, style }: PrivacyNoteProps): 
       <Ionicons
         name={visibility === 'shown' ? 'eye-outline' : 'eye-off-outline'}
         size={16}
-        color={theme.colors.textDisabled}
+        color={theme.colors.textSecondary}
         // The sentence carries the meaning; the icon repeats it visually.
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
         style={styles.icon}
       />
-      <AppText variant="caption" color="textDisabled" style={styles.text}>
+      <AppText variant="caption" color="textSecondary" style={styles.text}>
         {children}
       </AppText>
     </View>
