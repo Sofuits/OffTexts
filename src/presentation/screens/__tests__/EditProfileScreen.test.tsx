@@ -51,7 +51,7 @@ function fakeProfiles(
     getProfileById: async (): Promise<Result<Person>> => success(ME),
     updateMyProfile: async (update: ProfileUpdate): Promise<Result<Person>> => {
       updates.push(update);
-      return success({ ...ME, ...update });
+      return success({ ...ME, ...update } as Person);
     },
     ...overrides,
   } as ProfileRepository & { updates: ProfileUpdate[] };

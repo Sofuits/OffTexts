@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { Alert, type AlertButton } from 'react-native';
 
 import { createTestContainer } from '@/app/di';
 import { RootNavigator } from '@/app/navigation';
@@ -11,6 +12,7 @@ import {
   type AuthRepository,
   type ProfileRepository,
 } from '@/domain/repositories';
+import { env } from '@/shared/config';
 
 /**
  * The authentication gate.
@@ -147,5 +149,46 @@ describe('auth gate', () => {
     // somebody through onboarding again would write over what they have.
     expect(await screen.findByTestId('screen-today')).toBeTruthy();
     expect(screen.queryByTestId('onboarding-step-1')).toBeNull();
+  });
+});
+
+/**
+ * The dev-only "Reset onboarding" on the profile tab.
+ *
+ * Tested here rather than on the screen because what matters is the gate: the
+ * button has to put a signed-in member back in the wizard with no reload.
+ */
+describe('reset onboarding (development only)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  async function openProfileTab(): Promise<void> {
+    await screen.findByText('Person 1 of 3');
+    fireEvent.press(screen.getByText('Profile'));
+    await screen.findByTestId('button-sign-out');
+  }
+
+  it('is not offered without the demo flag, which production never has', async () => {
+    expect(env.hasDemoSignIn).toBe(false);
+
+    renderWith(authIn({ status: 'signedIn', session: SESSION }));
+    await openProfileTab();
+
+    expect(screen.queryByTestId('button-reset-onboarding')).toBeNull();
+  });
+
+  it('sends a finished member back to the wizard', async () => {
+    jest.replaceProperty(env, 'hasDemoSignIn', true);
+    // Presses "Reset" in the confirmation, as the member would.
+    jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons?: AlertButton[]) => {
+      buttons?.find((button) => button.text === 'Reset')?.onPress?.();
+    });
+
+    renderWith(authIn({ status: 'signedIn', session: SESSION }));
+    await openProfileTab();
+
+    fireEvent.press(screen.getByTestId('button-reset-onboarding'));
+
+    expect(await screen.findByTestId('onboarding-step-1')).toBeTruthy();
+    expect(screen.queryByTestId('screen-profile')).toBeNull();
   });
 });

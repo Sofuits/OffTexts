@@ -23,9 +23,15 @@ import {
   type Preferences,
 } from '@/domain/entities';
 import { useUseCases } from '@/app/di';
-import { useMyPreferences, useMyProfile, usePhotoUpload } from '@/presentation/hooks';
+import {
+  useMyPreferences,
+  useMyProfile,
+  usePhotoUpload,
+  useResetOnboarding,
+} from '@/presentation/hooks';
 import { useTheme } from '@/presentation/hooks/useTheme';
 import type { BottomTabScreenPropsFor } from '@/app/navigation/types';
+import { env } from '@/shared/config';
 import { toSentenceList } from '@/shared/utils/helpers';
 
 type Props = BottomTabScreenPropsFor<'Profile'>;
@@ -271,10 +277,61 @@ export function ProfileScreen({ navigation }: Props): React.JSX.Element {
               onPress={onSignOut}
               testID="button-sign-out"
             />
+
+            {env.hasDemoSignIn ? <DeveloperSection /> : null}
           </>
         )}
       </QueryBoundary>
     </ScreenContainer>
+  );
+}
+
+/**
+ * Tools for reviewing the app. Development only.
+ *
+ * Behind `env.hasDemoSignIn`, the same flag as the demo sign-in button, so it
+ * is absent from every production build: that flag is false in production no
+ * matter what the environment variables say. Last on the screen and labelled,
+ * so nobody reviewing the design mistakes it for part of it.
+ */
+function DeveloperSection(): React.JSX.Element {
+  const { mutate: resetOnboarding, isPending, error } = useResetOnboarding();
+
+  // No navigation afterwards. AuthedArea sees the cleared profile and swaps the
+  // tabs for the wizard, which unmounts this screen.
+  const onReset = useCallback(() => {
+    Alert.alert(
+      'Reset onboarding?',
+      'Clears your date of birth, what you are here for and your photos, then opens the wizard.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Reset', style: 'destructive', onPress: () => resetOnboarding() },
+      ],
+    );
+  }, [resetOnboarding]);
+
+  return (
+    <>
+      <Spacer size={32} />
+      <SectionHeader title="Developer" subtitle="Not in production builds" />
+      <Spacer size={12} />
+      <Button
+        label="Reset onboarding"
+        variant="outline"
+        fullWidth
+        loading={isPending}
+        onPress={onReset}
+        testID="button-reset-onboarding"
+      />
+      {error ? (
+        <>
+          <Spacer size={12} />
+          <AppText variant="caption" color="danger" testID="reset-onboarding-error">
+            {error.message}
+          </AppText>
+        </>
+      ) : null}
+    </>
   );
 }
 

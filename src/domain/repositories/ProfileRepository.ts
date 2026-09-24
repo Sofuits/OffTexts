@@ -9,8 +9,12 @@ export type ProfileUpdate = {
    * ISO date. Preferred over `age`, which the database derives from it — an age
    * written once is wrong for a few weeks every year, and nothing goes back to
    * correct it.
+   *
+   * `null` clears it, which sends the member back through onboarding — see
+   * `hasCompletedOnboarding`. Only the dev-only `ResetOnboarding` does that; the
+   * wizard and the profile editor only ever write a date.
    */
-  dateOfBirth?: string;
+  dateOfBirth?: string | null;
   gender?: Gender;
   headline?: string;
   bio?: string;

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 
-import { useRepositories } from '@/app/di';
+import { useRepositories, useUseCases } from '@/app/di';
 import type { Person } from '@/domain/entities';
 import { unwrap, type ProfileUpdate } from '@/domain/repositories';
 import { queryKeys } from '@/shared/constants/queryKeys';
@@ -50,6 +50,26 @@ export function useUpdateMyProfile() {
       // member watches.
       queryClient.setQueryData(queryKeys.profile.me(), updated);
       void queryClient.invalidateQueries({ queryKey: queryKeys.profile.byId(updated.id) });
+    },
+  });
+}
+
+/**
+ * Sends the signed-in member back to the onboarding wizard. Development only.
+ *
+ * Invalidates rather than seeding the cache from the response. `AuthedArea`
+ * decides between the wizard and the tabs from `profile.me()`, and a refetch
+ * is the same path a real first run takes — which is the thing being tested.
+ */
+export function useResetOnboarding() {
+  const { resetOnboarding } = useUseCases();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => unwrap(await resetOnboarding.execute()),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.photos.mine() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.me() });
     },
   });
 }

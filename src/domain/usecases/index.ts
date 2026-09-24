@@ -23,6 +23,7 @@ export {
 export { GetScheduledMeets, type ScheduledMeets } from './GetScheduledMeets';
 export { RequestMeet } from './RequestMeet';
 export { RequestPasswordReset } from './RequestPasswordReset';
+export { ResetOnboarding } from './ResetOnboarding';
 export { SignIn } from './SignIn';
 export {
   MAX_PASSWORD_LENGTH,

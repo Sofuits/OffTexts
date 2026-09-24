@@ -35,6 +35,7 @@ import {
   GetScheduledMeets,
   RequestMeet,
   RequestPasswordReset,
+  ResetOnboarding,
   SignIn,
   SignInWithGoogle,
   SignOut,
@@ -106,6 +107,8 @@ export type Container = {
     signInWithGoogle: SignInWithGoogle;
     signOut: SignOut;
     completeOnboarding: CompleteOnboarding;
+    /** Development only. See ResetOnboarding. */
+    resetOnboarding: ResetOnboarding;
     getScheduledMeets: GetScheduledMeets;
     requestMeet: RequestMeet;
     submitReview: SubmitReview;
@@ -246,6 +249,7 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
         await Promise.all(KEYS_TO_CLEAR_ON_SIGN_OUT.map((key) => store.removeItem(key)));
       }),
       completeOnboarding: new CompleteOnboarding(repositories.profile, repositories.preferences),
+      resetOnboarding: new ResetOnboarding(repositories.profile, repositories.photos),
       getScheduledMeets: new GetScheduledMeets(repositories.meets),
       requestMeet: new RequestMeet(repositories.meets),
       submitReview: new SubmitReview(repositories.reviews),

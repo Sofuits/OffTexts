@@ -94,7 +94,12 @@ export class InMemoryProfileRepository implements ProfileRepository {
 
   async updateMyProfile(update: ProfileUpdate): Promise<Result<Person>> {
     await delay();
-    this.me = { ...this.me, ...update };
+    const { dateOfBirth, ...rest } = update;
+    this.me = { ...this.me, ...rest };
+    // `null` clears the date, as it does on Supabase. A Person has no null
+    // date of birth, only an absent one.
+    if (dateOfBirth === null) delete this.me.dateOfBirth;
+    else if (dateOfBirth !== undefined) this.me.dateOfBirth = dateOfBirth;
     return success(clone(this.me));
   }
 }

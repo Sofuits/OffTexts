@@ -63,7 +63,7 @@ type ProfileUpdateRow = ProfileUpdate;
 export function toProfileUpdateRow(update: {
   name?: string;
   age?: number;
-  dateOfBirth?: string;
+  dateOfBirth?: string | null;
   gender?: Gender;
   headline?: string;
   bio?: string;
