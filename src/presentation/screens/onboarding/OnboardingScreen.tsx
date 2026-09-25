@@ -177,7 +177,9 @@ function DoneScreen({
       <View style={styles.done}>
         <IconTile name="checkmark-circle-outline" size={72} />
         <Spacer size={24} />
-        <AppText variant="display" align="center">
+        {/* A hero moment, so the display serif — the only place in the
+            wizard it appears (brief §3.5). */}
+        <AppText variant="hero" align="center">
           {`You’re in, ${person.name.split(' ')[0]}`}
         </AppText>
         <Spacer size={12} />

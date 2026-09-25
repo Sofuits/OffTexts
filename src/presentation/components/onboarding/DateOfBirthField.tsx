@@ -70,107 +70,64 @@ export function DateOfBirthField({
   const digitsOnly = (text: string, max: number): string =>
     text.replace(/[^0-9]/g, '').slice(0, max);
 
-  const box = (which: 'day' | 'month' | 'year'): ViewStyle => ({
-    minHeight: 56,
-    paddingHorizontal: theme.spacing[12],
-    borderRadius: theme.radii.md,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: focused === which ? theme.colors.primary : theme.colors.border,
-    backgroundColor: theme.colors.surface,
+  const focusProps = (which: 'day' | 'month' | 'year') => ({
+    focused: focused === which,
+    onFocus: () => setFocused(which),
+    onBlur: () => setFocused((current) => (current === which ? null : current)),
   });
 
   return (
     <View style={style}>
       <View style={[styles.row, { gap: theme.spacing[12] }]}>
-        <View style={styles.narrow}>
-          <AppText variant="caption" color="textSecondary">
-            Day
-          </AppText>
-          <TextInput
-            value={day}
-            onChangeText={(text) => {
-              const next = digitsOnly(text, 2);
-              setDay(next);
-              emit(next, month, year);
-              // Two digits means this box is finished. Jumping on is what makes
-              // eight digits feel like one movement instead of three.
-              if (next.length === 2) monthRef.current?.focus();
-            }}
-            keyboardType="number-pad"
-            placeholder="DD"
-            maxLength={2}
-            accessibilityLabel="Day of birth"
-            placeholderTextColor={theme.colors.placeholder}
-            style={[
-              styles.input,
-              theme.typography.subheading,
-              box('day'),
-              { color: theme.colors.textPrimary, marginTop: theme.spacing[8] },
-            ]}
-            onFocus={() => setFocused('day')}
-            onBlur={() => setFocused((current) => (current === 'day' ? null : current))}
-            testID="input-dob-day"
-          />
-        </View>
-
-        <View style={styles.narrow}>
-          <AppText variant="caption" color="textSecondary">
-            Month
-          </AppText>
-          <TextInput
-            ref={monthRef}
-            value={month}
-            onChangeText={(text) => {
-              const next = digitsOnly(text, 2);
-              setMonth(next);
-              emit(day, next, year);
-              if (next.length === 2) yearRef.current?.focus();
-            }}
-            keyboardType="number-pad"
-            placeholder="MM"
-            maxLength={2}
-            accessibilityLabel="Month of birth"
-            placeholderTextColor={theme.colors.placeholder}
-            style={[
-              styles.input,
-              theme.typography.subheading,
-              box('month'),
-              { color: theme.colors.textPrimary, marginTop: theme.spacing[8] },
-            ]}
-            onFocus={() => setFocused('month')}
-            onBlur={() => setFocused((current) => (current === 'month' ? null : current))}
-            testID="input-dob-month"
-          />
-        </View>
-
-        <View style={styles.wide}>
-          <AppText variant="caption" color="textSecondary">
-            Year
-          </AppText>
-          <TextInput
-            ref={yearRef}
-            value={year}
-            onChangeText={(text) => {
-              const next = digitsOnly(text, 4);
-              setYear(next);
-              emit(day, month, next);
-            }}
-            keyboardType="number-pad"
-            placeholder="YYYY"
-            maxLength={4}
-            accessibilityLabel="Year of birth"
-            placeholderTextColor={theme.colors.placeholder}
-            style={[
-              styles.input,
-              theme.typography.subheading,
-              box('year'),
-              { color: theme.colors.textPrimary, marginTop: theme.spacing[8] },
-            ]}
-            onFocus={() => setFocused('year')}
-            onBlur={() => setFocused((current) => (current === 'year' ? null : current))}
-            testID="input-dob-year"
-          />
-        </View>
+        <DigitBox
+          label="Day"
+          value={day}
+          onChangeText={(text) => {
+            const next = digitsOnly(text, 2);
+            setDay(next);
+            emit(next, month, year);
+            // Two digits means this box is finished. Jumping on is what makes
+            // eight digits feel like one movement instead of three.
+            if (next.length === 2) monthRef.current?.focus();
+          }}
+          placeholder="DD"
+          maxLength={2}
+          accessibilityLabel="Day of birth"
+          testID="input-dob-day"
+          {...focusProps('day')}
+        />
+        <DigitBox
+          label="Month"
+          inputRef={monthRef}
+          value={month}
+          onChangeText={(text) => {
+            const next = digitsOnly(text, 2);
+            setMonth(next);
+            emit(day, next, year);
+            if (next.length === 2) yearRef.current?.focus();
+          }}
+          placeholder="MM"
+          maxLength={2}
+          accessibilityLabel="Month of birth"
+          testID="input-dob-month"
+          {...focusProps('month')}
+        />
+        <DigitBox
+          label="Year"
+          inputRef={yearRef}
+          value={year}
+          onChangeText={(text) => {
+            const next = digitsOnly(text, 4);
+            setYear(next);
+            emit(day, month, next);
+          }}
+          placeholder="YYYY"
+          maxLength={4}
+          accessibilityLabel="Year of birth"
+          testID="input-dob-year"
+          wide
+          {...focusProps('year')}
+        />
       </View>
 
       {/*
@@ -198,6 +155,71 @@ export function DateOfBirthField({
               : `You’ll show up as ${age}.`}
         </AppText>
       ) : null}
+    </View>
+  );
+}
+
+/**
+ * One of the three boxes. The same field as `TextField` — white, radius `lg`,
+ * 52 tall, a hairline edge, and the raised band underneath while it has the
+ * caret — so the birthday step does not look like a different form.
+ */
+function DigitBox({
+  label,
+  inputRef,
+  focused,
+  wide = false,
+  ...input
+}: {
+  label: string;
+  inputRef?: React.RefObject<TextInput | null>;
+  focused: boolean;
+  wide?: boolean;
+  value: string;
+  onChangeText: (text: string) => void;
+  onFocus: () => void;
+  onBlur: () => void;
+  placeholder: string;
+  maxLength: number;
+  accessibilityLabel: string;
+  testID: string;
+}): React.JSX.Element {
+  const theme = useTheme();
+  const band = theme.sizes.fieldFocusBand;
+
+  return (
+    <View style={wide ? styles.wide : styles.narrow}>
+      <AppText variant="label">{label}</AppText>
+      <View style={{ marginTop: theme.spacing[8], paddingBottom: band }}>
+        {focused ? (
+          <View
+            pointerEvents="none"
+            style={[
+              styles.band,
+              { top: band, borderRadius: theme.radii.lg, backgroundColor: theme.colors.border },
+            ]}
+          />
+        ) : null}
+        <TextInput
+          ref={inputRef}
+          keyboardType="number-pad"
+          placeholderTextColor={theme.colors.placeholder}
+          style={[
+            styles.input,
+            theme.typography.subheading,
+            {
+              height: theme.sizes.field,
+              paddingHorizontal: theme.spacing[12],
+              borderRadius: theme.radii.lg,
+              borderWidth: StyleSheet.hairlineWidth * 2,
+              borderColor: theme.colors.border,
+              backgroundColor: theme.colors.inset,
+              color: theme.colors.textPrimary,
+            },
+          ]}
+          {...input}
+        />
+      </View>
     </View>
   );
 }
@@ -245,5 +267,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row' },
   narrow: { flex: 1 },
   wide: { flex: 1.6 },
-  input: { width: '100%', textAlign: 'center' },
+  // Above the band on every platform; see TextField.
+  input: { width: '100%', textAlign: 'center', position: 'relative', zIndex: 1 },
+  band: { position: 'absolute', left: 0, right: 0, bottom: 0 },
 });

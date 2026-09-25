@@ -145,7 +145,6 @@ export function OnboardingStep({
               paddingHorizontal: theme.spacing[20],
               paddingTop: theme.spacing[12],
               paddingBottom: theme.spacing[12],
-              borderTopColor: theme.colors.border,
               gap: theme.spacing[16],
             },
           ]}
@@ -193,11 +192,10 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', height: 44 },
   backSpacer: { width: 24 },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
+  // No rule above it. Breeze's pinned footer sits on the page colour with
+  // nothing drawn between it and the content; a hairline there read as a
+  // toolbar, which is not what the next button is.
+  footer: { flexDirection: 'row', alignItems: 'center' },
   footerText: { flex: 1 },
   pressed: { opacity: 0.6 },
 });

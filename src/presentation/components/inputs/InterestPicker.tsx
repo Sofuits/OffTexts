@@ -76,7 +76,9 @@ export function InterestPicker({
       </AppText>
       <Spacer size={12} />
 
-      <ChipGroup>
+      {/* What is picked stays in sight above the list, rather than being
+          scattered through twenty-four suggestions (brief §3.2). */}
+      <ChipGroup selectionLabel="My selection">
         {[...typed, ...SUGGESTED_INTERESTS].map((interest) => {
           const isOn = selected.includes(interest);
           return (

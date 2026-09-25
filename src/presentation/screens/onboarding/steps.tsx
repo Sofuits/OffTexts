@@ -7,6 +7,7 @@ import {
   Chip,
   ChipGroup,
   ChoiceRow,
+  type ChoiceRowPosition,
   DateOfBirthField,
   InterestPicker,
   PhotoGrid,
@@ -135,8 +136,6 @@ function GenderBody({ draft, patch }: StepContext): React.JSX.Element {
 }
 
 function InterestedInBody({ draft, patch }: StepContext): React.JSX.Element {
-  const theme = useTheme();
-
   const toggle = (gender: Gender): void => {
     const next = draft.interestedIn.includes(gender)
       ? draft.interestedIn.filter((value) => value !== gender)
@@ -144,22 +143,28 @@ function InterestedInBody({ draft, patch }: StepContext): React.JSX.Element {
     patch({ interestedIn: next });
   };
 
+  // One shared card with dividers, not a card per option: several can be on
+  // at once, and the shape says so before anyone taps (brief §3.3).
   return (
-    <View style={{ gap: theme.spacing[12] }}>
-      {PREFERABLE_GENDERS.map((gender) => (
-        <ChoiceRow
-          key={gender}
-          label={GENDER_PLURAL_LABELS[gender]}
-          selected={draft.interestedIn.includes(gender)}
-          onPress={() => toggle(gender)}
-          mode="multiple"
-          testID={`choice-interested-${gender}`}
-        />
-      ))}
+    <>
+      <View>
+        {PREFERABLE_GENDERS.map((gender, index) => (
+          <ChoiceRow
+            key={gender}
+            label={GENDER_PLURAL_LABELS[gender]}
+            selected={draft.interestedIn.includes(gender)}
+            onPress={() => toggle(gender)}
+            mode="multiple"
+            position={positionIn(index, PREFERABLE_GENDERS.length)}
+            testID={`choice-interested-${gender}`}
+          />
+        ))}
+      </View>
+      <Spacer size={12} />
       <AppText variant="caption" color="textSecondary">
         Pick as many as apply. You can change this later without anyone being told.
       </AppText>
-    </View>
+    </>
   );
 }
 
@@ -355,6 +360,13 @@ function NotificationsBody({ draft, patch }: StepContext): React.JSX.Element {
       />
     </View>
   );
+}
+
+/** Where row `index` of `count` sits in a grouped list, so the card rounds its ends. */
+function positionIn(index: number, count: number): ChoiceRowPosition {
+  if (count === 1) return 'only';
+  if (index === 0) return 'first';
+  return index === count - 1 ? 'last' : 'middle';
 }
 
 /* ----------------------------------------------------------------- steps -- */
