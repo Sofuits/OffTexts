@@ -51,7 +51,7 @@ the same component. Build two, use them twice.
 
 ---
 
-## 2. Schema — migration 0011
+## 2. Schema — migration 0012
 
 ```sql
 create type public.scheduling_stage as enum
@@ -535,7 +535,7 @@ stays covered by `--remove` and its self-check.
 
 ## 8. Build order
 
-1. Migration 0011 + RLS + assertions. Nothing else starts until the tests for
+1. Migration 0012 + RLS + assertions. Nothing else starts until the tests for
    "outside the match sees nothing" pass.
 2. `api_v1` functions and the two views, with the definer hardening and its
    assertion.
