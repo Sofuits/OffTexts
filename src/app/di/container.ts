@@ -45,6 +45,7 @@ import {
   SubmitReview,
   UpdatePassword,
   VerifyEmail,
+  VerifyPasswordResetCode,
 } from '@/domain/usecases';
 import { NoopAnalytics, type Analytics } from '@/infrastructure/analytics';
 import { ConsoleLogger, SentryLogger, type Logger } from '@/infrastructure/logging';
@@ -68,6 +69,7 @@ import {
 import {
   bridgeSupabaseToAppState,
   createSupabaseClient,
+  oauthRedirect,
   passwordResetRedirect,
   runOAuthFlow,
   type TypedSupabaseClient,
@@ -111,6 +113,7 @@ export type Container = {
     resendVerificationCode: ResendVerificationCode;
     requestPasswordReset: RequestPasswordReset;
     updatePassword: UpdatePassword;
+    verifyPasswordResetCode: VerifyPasswordResetCode;
     signInWithGoogle: SignInWithGoogle;
     signOut: SignOut;
     completeOnboarding: CompleteOnboarding;
@@ -175,10 +178,24 @@ function buildSupabaseRepositories(
   const profileCache = new ProfileLocalDataSource(store, logger);
   const meetCache = new MeetLocalDataSource(store, logger);
 
+  // The address a password reset email sends the member back to. It differs by
+  // runtime — `offtexts://auth/reset` in a development or store build,
+  // `exp://<your-machine>/--/auth/reset` in Expo Go — and it must be listed in
+  // Supabase under Authentication → URL Configuration → Redirect URLs, or
+  // Supabase silently sends the member to the Site URL instead. Logged in
+  // development so the exact string can be copied into that list.
+  const resetRedirect = passwordResetRedirect();
+  if (env.isDevelopment) {
+    logger.info('Password reset links return to', { redirect: resetRedirect });
+    // Must be listed under Supabase → Authentication → URL Configuration →
+    // Redirect URLs for "Continue with Google" to come back to the app.
+    logger.info('Google sign-in returns to', { redirect: oauthRedirect() });
+  }
+
   return {
     // The browser flow is handed in here, not imported by the repository —
     // that is what keeps `data/` loadable outside React Native.
-    auth: new SupabaseAuthRepository(client, logger, runOAuthFlow, passwordResetRedirect()),
+    auth: new SupabaseAuthRepository(client, logger, runOAuthFlow, resetRedirect),
     profile: new SupabaseProfileRepository(client, profileCache, connectivity, logger),
     discover: new SupabaseDiscoverRepository(client),
     matching: new SupabaseMatchingRepository(client),
@@ -271,6 +288,7 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
       resendVerificationCode: new ResendVerificationCode(repositories.auth),
       requestPasswordReset: new RequestPasswordReset(repositories.auth),
       updatePassword: new UpdatePassword(repositories.auth, passwordRequirement),
+      verifyPasswordResetCode: new VerifyPasswordResetCode(repositories.auth),
       signInWithGoogle: new SignInWithGoogle(repositories.auth),
       // Signing out must also drop whatever the previous member left on disk,
       // or the next person to sign in on this phone sees their cached profile.

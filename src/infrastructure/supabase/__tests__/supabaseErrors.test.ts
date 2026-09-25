@@ -64,6 +64,16 @@ describe('classifySupabaseError', () => {
     );
   });
 
+  it('sends an already-registered address to sign in', () => {
+    // What Supabase answers when "Confirm email" is off and the address is taken.
+    const error = classifySupabaseError(
+      authError('user_already_exists', 422, 'User already registered'),
+    );
+
+    expect(error.reason).toBe('accountExists');
+    expect(error.field).toBe('email');
+  });
+
   it('says a breached password has been seen in a breach', () => {
     const error = classifySupabaseError({
       name: 'AuthWeakPasswordError',

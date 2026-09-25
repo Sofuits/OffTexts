@@ -1,4 +1,10 @@
-export { SetNewPasswordScreen, SignInScreen, SplashScreen, VerifyEmailScreen } from './auth';
+export {
+  ResetPasswordCodeScreen,
+  SetNewPasswordScreen,
+  SignInScreen,
+  SplashScreen,
+  VerifyEmailScreen,
+} from './auth';
 export { DiscoverScreen } from './discover/DiscoverScreen';
 export { MeetDetailsScreen } from './meets/MeetDetailsScreen';
 export { RatingsReviewsScreen } from './meets/RatingsReviewsScreen';

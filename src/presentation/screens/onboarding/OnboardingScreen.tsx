@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import {
   AppText,
@@ -39,7 +39,7 @@ import { visibleSteps } from './steps';
  * delay, the congratulation screen would be replaced before it was read.
  */
 export function OnboardingScreen(): React.JSX.Element {
-  const { completeOnboarding } = useUseCases();
+  const { completeOnboarding, signOut } = useUseCases();
   const queryClient = useQueryClient();
 
   const [draft, setDraft] = useState<OnboardingDraft>(EMPTY_DRAFT);
@@ -101,6 +101,30 @@ export function OnboardingScreen(): React.JSX.Element {
 
   const onBack = useCallback(() => setIndex((current) => Math.max(current - 1, 0)), []);
 
+  /**
+   * Back from the FIRST question leaves onboarding altogether.
+   *
+   * The member is signed in by now — verifying the email did that — so the
+   * only way back to the sign-in and sign-up screens is to sign out. That is
+   * said before it happens, along with the fact that nothing answered so far is
+   * kept (see "WHY NOTHING IS SAVED UNTIL THE END"). Signing out does not
+   * navigate: the auth gate swaps this wizard for the sign-in screen.
+   */
+  const onLeave = useCallback(() => {
+    Alert.alert(
+      'Back to sign in?',
+      'You will be signed out, and your answers so far will not be saved. You can sign in again to finish later.',
+      [
+        { text: 'Stay', style: 'cancel' },
+        {
+          text: 'Sign out',
+          style: 'destructive',
+          onPress: () => void signOut.execute(),
+        },
+      ],
+    );
+  }, [signOut]);
+
   if (finished) {
     return (
       <DoneScreen
@@ -136,7 +160,7 @@ export function OnboardingScreen(): React.JSX.Element {
       question={step.question}
       {...(step.subtitle ? { subtitle: step.subtitle } : {})}
       {...(step.privacy ? { privacy: step.privacy } : {})}
-      {...(index > 0 ? { onBack } : {})}
+      onBack={index > 0 ? onBack : onLeave}
       onNext={onNext}
       nextDisabled={!step.isAnswered(draft)}
       nextLoading={isSubmitting}

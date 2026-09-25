@@ -39,3 +39,4 @@ export { SignInWithGoogle, SignOut, type SignInOutcome } from './SignInWithGoogl
 export { SubmitReview } from './SubmitReview';
 export { UpdatePassword } from './UpdatePassword';
 export { SIGN_UP_CODE_LENGTH, VerifyEmail } from './VerifyEmail';
+export { VerifyPasswordResetCode } from './VerifyPasswordResetCode';

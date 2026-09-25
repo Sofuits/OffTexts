@@ -400,6 +400,13 @@ export class InMemoryAuthRepository implements AuthRepository {
     return success(undefined);
   }
 
+  async verifyRecoveryCode(): Promise<Result<void>> {
+    await delay();
+    this.session = SEED_SESSION;
+    this.emit();
+    return success(undefined);
+  }
+
   async beginPasswordRecovery(): Promise<Result<void>> {
     await delay();
     this.session = SEED_SESSION;

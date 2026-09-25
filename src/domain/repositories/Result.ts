@@ -47,6 +47,8 @@ export type ErrorKind = (typeof ERROR_KINDS)[number];
 export const AUTH_FAILURE_REASONS = [
   'invalidCredentials',
   'emailNotConfirmed',
+  /** Sign-up for an address that already has a verified account. */
+  'accountExists',
   'codeInvalidOrExpired',
   'weakPassword',
   'rateLimited',

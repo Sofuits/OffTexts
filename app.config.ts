@@ -90,5 +90,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // EXPO_PUBLIC_ENVIRONMENT is production, so they cannot ship enabled.
     demoEmail: process.env.EXPO_PUBLIC_DEMO_EMAIL,
     demoPassword: process.env.EXPO_PUBLIC_DEMO_PASSWORD,
+    // Links this app to its EAS project, for `eas build` and `eas submit`. EAS
+    // cannot write it here itself because this config is TypeScript, not JSON.
+    eas: {
+      projectId: '49cb0563-3f24-4274-81d2-e9d95a4134ac',
+    },
   },
 });

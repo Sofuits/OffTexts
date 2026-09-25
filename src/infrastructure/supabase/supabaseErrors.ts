@@ -77,18 +77,21 @@ const AUTH_CODES: Record<string, Classified> = {
     field: 'email',
     message: 'That email address cannot be used. Check it and try again.',
   },
-  // With "Confirm email" on, Supabase normally answers a sign-up for a taken
-  // address as if it succeeded, so as not to reveal who is registered. These
-  // codes are the cases where it does not; the wording stays non-committal.
+  // With "Confirm email" on, Supabase answers a sign-up for a taken address as
+  // if it succeeded (the repository spots that and reports `accountExists`
+  // itself). With it OFF, Supabase says so with one of these codes instead.
+  // Either way the member is sent to sign in, as the product asks.
   user_already_exists: {
     kind: 'validation',
     field: 'email',
-    message: 'An account could not be created with that email. If you already have one, sign in.',
+    reason: 'accountExists',
+    message: 'An account with this email already exists. Sign in instead.',
   },
   email_exists: {
     kind: 'validation',
     field: 'email',
-    message: 'An account could not be created with that email. If you already have one, sign in.',
+    reason: 'accountExists',
+    message: 'An account with this email already exists. Sign in instead.',
   },
   over_email_send_rate_limit: {
     kind: 'rateLimited',

@@ -14,6 +14,7 @@ import { Spacer } from '@/presentation/components/common/Spacer';
 import { PasswordChecklist } from '@/presentation/components/inputs/PasswordChecklist';
 import { PasswordField } from '@/presentation/components/inputs/PasswordField';
 import { TextField } from '@/presentation/components/inputs/TextField';
+import { ResetPasswordCodeScreen } from './ResetPasswordCodeScreen';
 import { VerifyEmailScreen } from './VerifyEmailScreen';
 
 /**
@@ -52,8 +53,8 @@ const COPY: Record<Mode, { title: string; subtitle: string; action: string }> = 
   },
   reset: {
     title: 'Reset your password',
-    subtitle: 'We’ll email you a link. It expires shortly, so use it soon.',
-    action: 'Send the link',
+    subtitle: 'We’ll email you a 6-digit code to choose a new password.',
+    action: 'Send the code',
   },
 };
 
@@ -61,7 +62,13 @@ export function SignInScreen(): React.JSX.Element {
   const { signInWithGoogle, signIn, signUp, requestPasswordReset } = useUseCases();
 
   const [mode, setMode] = useState<Mode>('signIn');
-  const [isBusy, setIsBusy] = useState(false);
+  /**
+   * Which action is in flight, if any. Every button is disabled while one
+   * runs, but only the one that was pressed shows the spinner — the email
+   * button spinning while the Google browser is open says something untrue.
+   */
+  const [busyAction, setBusyAction] = useState<'form' | 'google' | 'demo' | null>(null);
+  const isBusy = busyAction !== null;
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -83,6 +90,11 @@ export function SignInScreen(): React.JSX.Element {
   const [verifying, setVerifying] = useState<{ email: string; codeJustSent: boolean } | null>(null);
   /** The address a sign-in was refused for because it is not verified yet. */
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  /**
+   * Set once a password reset code has been requested. While set, the reset
+   * code screen replaces this form.
+   */
+  const [resettingFor, setResettingFor] = useState<string | null>(null);
 
   const copy = COPY[mode];
 
@@ -98,17 +110,17 @@ export function SignInScreen(): React.JSX.Element {
     setConfirmPassword('');
   }, []);
 
-  const run = useCallback(async (work: () => Promise<void>) => {
+  const run = useCallback(async (action: 'form' | 'google' | 'demo', work: () => Promise<void>) => {
     setError(null);
     setNotice(null);
     setUnverifiedEmail(null);
-    setIsBusy(true);
+    setBusyAction(action);
     try {
       await work();
     } catch (caught) {
       setError(caught instanceof AppError ? caught.message : 'Something went wrong. Try again.');
     } finally {
-      setIsBusy(false);
+      setBusyAction(null);
     }
   }, []);
 
@@ -118,23 +130,31 @@ export function SignInScreen(): React.JSX.Element {
     setEmailTouched(true);
     if (!isValidEmail(email)) return;
 
-    void run(async () => {
+    void run('form', async () => {
       if (mode === 'reset') {
         const result = await requestPasswordReset.execute(email);
         if (!result.ok) {
           setError(result.error.message);
           return;
         }
-        // Deliberately says nothing about whether the account exists. See
-        // RequestPasswordReset — "no account with that email" would turn this
-        // form into a way to find out who is a member.
-        setNotice(`If ${email.trim()} has an account, a reset link is on its way.`);
+        // The code screen takes over. Like this form, it says nothing about
+        // whether the account exists — see RequestPasswordReset.
+        setResettingFor(email.trim().toLowerCase());
         return;
       }
 
       if (mode === 'signUp') {
         const result = await signUp.execute({ email, password, confirmPassword });
         if (!result.ok) {
+          if (result.error.reason === 'accountExists') {
+            // No code is coming for an account that is already verified, so
+            // the code screen would be a dead end. Straight to sign-in, with
+            // the email and password already typed kept in place.
+            setMode('signIn');
+            setConfirmPassword('');
+            setNotice(result.error.message);
+            return;
+          }
           setError(result.error.message);
           return;
         }
@@ -174,7 +194,7 @@ export function SignInScreen(): React.JSX.Element {
    * say, so this cannot ship.
    */
   const onDemoPress = useCallback(() => {
-    void run(async () => {
+    void run('demo', async () => {
       const result = await signIn.execute({
         email: env.demoEmail,
         password: env.demoPassword,
@@ -189,7 +209,7 @@ export function SignInScreen(): React.JSX.Element {
   }, [run, signIn]);
 
   const onGooglePress = useCallback(() => {
-    void run(async () => {
+    void run('google', async () => {
       const result = await signInWithGoogle.execute();
       // A member who opened the browser and backed out has done nothing wrong.
       // Showing an error there makes a working app feel broken, so a cancelled
@@ -214,6 +234,13 @@ export function SignInScreen(): React.JSX.Element {
     setPassword('');
   }, []);
 
+  const leaveReset = useCallback(() => {
+    setResettingFor(null);
+    setMode('signIn');
+    setError(null);
+    setNotice(null);
+  }, []);
+
   const emailError =
     emailTouched && email.trim() && !isValidEmail(email)
       ? 'Enter an email like name@example.com.'
@@ -229,6 +256,10 @@ export function SignInScreen(): React.JSX.Element {
     if (mode === 'reset') return false;
     return password.length === 0;
   }, [email, password, mode]);
+
+  if (resettingFor) {
+    return <ResetPasswordCodeScreen email={resettingFor} onBack={leaveReset} />;
+  }
 
   if (verifying) {
     return (
@@ -332,8 +363,8 @@ export function SignInScreen(): React.JSX.Element {
         <Button
           label={copy.action}
           onPress={onSubmit}
-          loading={isBusy}
-          disabled={submitDisabled}
+          loading={busyAction === 'form'}
+          disabled={submitDisabled || isBusy}
           fullWidth
           size="lg"
           testID="button-submit"
@@ -381,7 +412,8 @@ export function SignInScreen(): React.JSX.Element {
               label="Continue with Google"
               variant="secondary"
               onPress={onGooglePress}
-              loading={isBusy}
+              loading={busyAction === 'google'}
+              disabled={isBusy}
               fullWidth
               testID="button-google-sign-in"
             />
@@ -401,7 +433,8 @@ export function SignInScreen(): React.JSX.Element {
               label="Demo sign-in"
               variant="outline"
               onPress={onDemoPress}
-              loading={isBusy}
+              loading={busyAction === 'demo'}
+              disabled={isBusy}
               fullWidth
               testID="button-demo-sign-in"
             />

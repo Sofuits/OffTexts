@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import { createTestContainer } from '@/app/di';
 import { AppProviders, createTestQueryClient } from '@/app/providers';
@@ -56,6 +56,7 @@ function fakeAuth(recorder: Recorder, overrides: Partial<AuthRepository> = {}): 
     verifySignUpCode: async () => success(SESSION),
     resendSignUpCode: async () => success(undefined),
     beginPasswordRecovery: async () => success(undefined),
+    verifyRecoveryCode: async () => success(undefined),
     updatePassword: async () => success(undefined),
     sendPasswordReset: async (email) => {
       recorder.resets.push(email);
@@ -181,6 +182,37 @@ describe('SignInScreen', () => {
     expect(screen.getByText(/ava@example\.com/)).toBeTruthy();
   });
 
+  it('sends an existing account to sign in instead of the code screen', async () => {
+    renderScreen({
+      signUpWithPassword: async () =>
+        failure(
+          new AppError(
+            'validation',
+            'An account with this email already exists. Sign in instead.',
+            {
+              field: 'email',
+              reason: 'accountExists',
+            },
+          ),
+        ),
+    });
+
+    fireEvent.press(screen.getByTestId('link-sign-up'));
+    fireEvent.changeText(screen.getByTestId('input-email'), 'ava@example.com');
+    fireEvent.changeText(screen.getByTestId('input-password'), 'correct horse battery');
+    fireEvent.changeText(screen.getByTestId('input-confirm-password'), 'correct horse battery');
+    fireEvent.press(screen.getByTestId('button-submit'));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('sign-in-notice').props.children).toMatch(/Sign in instead/),
+    );
+    // No code is coming for a verified account, so there is no code screen…
+    expect(screen.queryByTestId('screen-verify-email')).toBeNull();
+    // …and the form is now sign-in, with the email still filled in.
+    expect(screen.queryByTestId('input-confirm-password')).toBeNull();
+    expect(screen.getByTestId('input-email').props.value).toBe('ava@example.com');
+  });
+
   it('offers verification, without sending an email, when the address is not verified', async () => {
     const resends: string[] = [];
     renderScreen({
@@ -237,11 +269,40 @@ describe('SignInScreen', () => {
 
     await waitFor(() => expect(recorder.resets).toHaveLength(1));
 
-    // "If … has an account" is deliberate. Saying "no account with that email"
-    // would turn this form into a way to find out who is on Offtexts, which
-    // for a dating app is a disclosure in itself.
-    const notice = String(screen.getByTestId('sign-in-notice').props.children);
-    expect(notice).toContain('If ');
+    // The reset code screen takes over. "If … has an account" is deliberate:
+    // saying "no account with that email" would turn this form into a way to
+    // find out who is on Offtexts, which for a dating app is a disclosure.
+    expect(screen.getByTestId('screen-reset-code')).toBeTruthy();
+    const intro = String(screen.getByTestId('reset-code-intro').props.children);
+    expect(intro).toContain('If stranger@example.com has an account');
+  });
+
+  it('sends a new reset code on request', async () => {
+    const recorder = renderScreen();
+
+    fireEvent.press(screen.getByTestId('link-reset'));
+    fireEvent.changeText(screen.getByTestId('input-email'), 'Ava@Example.com');
+    fireEvent.press(screen.getByTestId('button-submit'));
+    await waitFor(() => expect(screen.getByTestId('screen-reset-code')).toBeTruthy());
+
+    fireEvent.press(screen.getByTestId('button-reset-resend'));
+
+    await waitFor(() => expect(recorder.resets).toEqual(['ava@example.com', 'ava@example.com']));
+    expect(screen.getByTestId('reset-code-notice')).toBeTruthy();
+  });
+
+  it('goes back to sign in from the reset code screen', async () => {
+    renderScreen();
+
+    fireEvent.press(screen.getByTestId('link-reset'));
+    fireEvent.changeText(screen.getByTestId('input-email'), 'ava@example.com');
+    fireEvent.press(screen.getByTestId('button-submit'));
+    await waitFor(() => expect(screen.getByTestId('screen-reset-code')).toBeTruthy());
+
+    fireEvent.press(screen.getByTestId('link-reset-back'));
+
+    expect(screen.getByTestId('input-password')).toBeTruthy();
+    expect(screen.queryByTestId('screen-reset-code')).toBeNull();
   });
 
   it('clears a stale error when switching mode', async () => {
@@ -260,5 +321,77 @@ describe('SignInScreen', () => {
 
     // Otherwise the member is told to fix something that is no longer on screen.
     expect(screen.queryByTestId('sign-in-error')).toBeNull();
+  });
+
+  describe('Continue with Google', () => {
+    // `env` is a plain object; the flag is switched on per test and restored.
+    const mutableEnv = env as { enableGoogleAuth: boolean };
+    const shipped = env.enableGoogleAuth;
+    beforeEach(() => {
+      mutableEnv.enableGoogleAuth = true;
+    });
+    afterEach(() => {
+      mutableEnv.enableGoogleAuth = shipped;
+    });
+
+    const googleButton = () => screen.getByTestId('button-google-sign-in');
+
+    it('is offered once the provider is switched on', () => {
+      renderScreen();
+
+      expect(googleButton()).toBeTruthy();
+    });
+
+    it('spins only the Google button while the browser is open', async () => {
+      let finish: (result: Result<Session | null>) => void = () => {};
+      renderScreen({
+        signInWithOAuth: () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      });
+
+      fireEvent.press(googleButton());
+
+      await waitFor(() => expect(googleButton().props.accessibilityState?.busy).toBe(true));
+      // The email button is out of reach, but not pretending to work.
+      const submit = screen.getByTestId('button-submit');
+      expect(submit.props.accessibilityState?.busy).toBe(false);
+      expect(submit.props.accessibilityState?.disabled).toBe(true);
+
+      await act(async () => finish(success(null)));
+      await waitFor(() => expect(googleButton().props.accessibilityState?.busy).toBe(false));
+    });
+
+    it('says nothing when the member backs out of the browser', async () => {
+      const attempts: string[] = [];
+      renderScreen({
+        signInWithOAuth: async (provider) => {
+          attempts.push(provider);
+          return success(null);
+        },
+      });
+
+      fireEvent.press(googleButton());
+
+      await waitFor(() => expect(attempts).toEqual(['google']));
+      await waitFor(() => expect(googleButton().props.accessibilityState?.busy).toBe(false));
+      expect(screen.queryByTestId('sign-in-error')).toBeNull();
+    });
+
+    it('shows the reason when Google sign-in fails', async () => {
+      renderScreen({
+        signInWithOAuth: async () =>
+          failure(new AppError('forbidden', 'New accounts cannot be created right now.')),
+      });
+
+      fireEvent.press(googleButton());
+
+      await waitFor(() =>
+        expect(screen.getByTestId('sign-in-error').props.children).toBe(
+          'New accounts cannot be created right now.',
+        ),
+      );
+    });
   });
 });

@@ -6,6 +6,7 @@ import {
   SIGN_UP_CODE_LENGTH,
   UpdatePassword,
   VerifyEmail,
+  VerifyPasswordResetCode,
 } from '@/domain/usecases';
 
 /**
@@ -42,6 +43,7 @@ function makeAuth() {
     sendMagicLink: async () => success(undefined),
     sendPasswordReset: async () => success(undefined),
     beginPasswordRecovery: async () => success(undefined),
+    verifyRecoveryCode: async () => success(undefined),
     updatePassword: async (password) => {
       calls.update.push(password);
       return success(undefined);
@@ -89,6 +91,43 @@ describe('VerifyEmail', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.field).toBe('code');
     expect(calls.verify).toHaveLength(0);
+  });
+});
+
+describe('VerifyPasswordResetCode', () => {
+  const recording = () => {
+    const { auth } = makeAuth();
+    const checked: { email: string; code: string }[] = [];
+    auth.verifyRecoveryCode = async (email, code) => {
+      checked.push({ email, code });
+      return success(undefined);
+    };
+    return { auth, checked };
+  };
+
+  it('normalises the email and sends the code', async () => {
+    const { auth, checked } = recording();
+
+    const result = await new VerifyPasswordResetCode(auth).execute({
+      email: ' Ava@Example.com ',
+      code: `${VALID_CODE.slice(0, 3)} ${VALID_CODE.slice(3)}`,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(checked).toEqual([{ email: 'ava@example.com', code: VALID_CODE }]);
+  });
+
+  it('rejects a code of the wrong shape without calling the server', async () => {
+    const { auth, checked } = recording();
+
+    const result = await new VerifyPasswordResetCode(auth).execute({
+      email: 'ava@example.com',
+      code: VALID_CODE.slice(1),
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.field).toBe('code');
+    expect(checked).toHaveLength(0);
   });
 });
 

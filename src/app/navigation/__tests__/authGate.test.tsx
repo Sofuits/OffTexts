@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { Linking } from 'react-native';
 
 import { createTestContainer } from '@/app/di';
@@ -41,6 +41,7 @@ function authIn(state: AuthState): AuthRepository {
     verifySignUpCode: async () => success(SESSION),
     resendSignUpCode: async () => success(undefined),
     beginPasswordRecovery: async () => success(undefined),
+    verifyRecoveryCode: async () => success(undefined),
     updatePassword: async () => success(undefined),
     sendPasswordReset: async () => success(undefined),
     signOut: async () => success(undefined),
@@ -212,6 +213,63 @@ describe('auth gate', () => {
 
       expect(await screen.findByTestId('screen-sign-in')).toBeTruthy();
       expect(recoveries).toHaveLength(0);
+    });
+  });
+
+  describe('password reset code', () => {
+    /** Signed out; accepting a code signs the member in part-way through, as Supabase does. */
+    function resettableAuth(outcome: 'accept' | 'reject'): AuthRepository {
+      let notify: (state: AuthState) => void = () => {};
+      return {
+        ...authIn({ status: 'signedOut' }),
+        observeAuthState: (listener) => {
+          notify = listener;
+          listener({ status: 'signedOut' });
+          return () => {};
+        },
+        verifyRecoveryCode: async () => {
+          if (outcome === 'reject') {
+            return failure(
+              new AppError('validation', 'That code is wrong or has expired.', {
+                reason: 'codeInvalidOrExpired',
+                field: 'code',
+              }),
+            );
+          }
+          notify({ status: 'signedIn', session: SESSION });
+          return success(undefined);
+        },
+      };
+    }
+
+    async function enterResetCode(): Promise<void> {
+      fireEvent.press(await screen.findByTestId('link-reset'));
+      fireEvent.changeText(screen.getByTestId('input-email'), 'you@example.com');
+      fireEvent.press(screen.getByTestId('button-submit'));
+      await screen.findByTestId('screen-reset-code');
+      fireEvent.changeText(screen.getByTestId('input-reset-code'), '123456');
+      fireEvent.press(screen.getByTestId('button-reset-continue'));
+    }
+
+    it('asks for a new password after a correct code, not the app', async () => {
+      renderWith(resettableAuth('accept'));
+
+      await enterResetCode();
+
+      // Signed in by the code, but that session is for this one job.
+      expect(await screen.findByTestId('input-new-password')).toBeTruthy();
+      expect(screen.queryByTestId('screen-today')).toBeNull();
+    });
+
+    it('keeps the code screen, with the reason, after a wrong code', async () => {
+      renderWith(resettableAuth('reject'));
+
+      await enterResetCode();
+
+      expect(await screen.findByTestId('reset-code-error')).toBeTruthy();
+      // Not a fresh sign-in screen: the code can be corrected where it was typed.
+      expect(screen.getByTestId('screen-reset-code')).toBeTruthy();
+      expect(screen.queryByTestId('input-new-password')).toBeNull();
     });
   });
 });

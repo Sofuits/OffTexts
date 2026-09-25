@@ -11,9 +11,9 @@ import React, {
 } from 'react';
 import { Linking } from 'react-native';
 
-import { useRepositories, useServices } from '@/app/di';
+import { useRepositories, useServices, useUseCases } from '@/app/di';
 import type { AuthState } from '@/domain/entities';
-import type { Credentials } from '@/domain/repositories';
+import type { Credentials, Result } from '@/domain/repositories';
 
 /**
  * The authentication state of the app.
@@ -32,14 +32,21 @@ import type { Credentials } from '@/domain/repositories';
 /**
  * Where a member is in resetting a forgotten password.
  *
- * Tracked here rather than as a route because the reset link SIGNS THE MEMBER
- * IN. Left to the ordinary gate, a signed-in member is shown the app — so the
- * gate has to know that this particular session exists only to choose a new
- * password, and put that screen in front of everything until it is done.
+ * Tracked here rather than as a route because a correct reset code (or link)
+ * SIGNS THE MEMBER IN. Left to the ordinary gate, a signed-in member is shown
+ * the app — so the gate has to know that this particular session exists only
+ * to choose a new password, and put that screen in front of everything until
+ * it is done.
  */
 export type PasswordRecovery =
   | { status: 'none' }
-  /** The link arrived. The session is being set, or has been. */
+  /**
+   * A reset code is being checked. The sign-in screen stays exactly where it
+   * is — even though a correct code signs the member in part-way through — so
+   * a wrong code can be corrected on the screen it was typed into.
+   */
+  | { status: 'verifying' }
+  /** The code was right, or the link arrived: time to choose a new password. */
   | { status: 'active' }
   /** The link was expired, used or malformed. */
   | { status: 'failed'; message: string };
@@ -51,6 +58,12 @@ type AuthContextValue = {
   passwordRecovery: PasswordRecovery;
   /** Leave the reset screen: after a new password is saved, or to give up. */
   endPasswordRecovery: () => void;
+  /**
+   * Checks the code from a password reset email. On success the gate moves to
+   * the new-password screen by itself; on failure nothing moves and the
+   * caller shows the returned error.
+   */
+  verifyPasswordResetCode: (email: string, code: string) => Promise<Result<void>>;
   signIn: (credentials: Credentials) => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -65,6 +78,7 @@ const RESET_LINK = /(^|[/:])auth\/reset([/?#]|$)/;
 
 export function AuthProvider({ children }: PropsWithChildren): React.JSX.Element {
   const { auth } = useRepositories();
+  const { verifyPasswordResetCode: checkResetCode } = useUseCases();
   const { logger, analytics } = useServices();
   const queryClient = useQueryClient();
   const [state, setState] = useState<AuthState>({ status: 'restoring' });
@@ -121,6 +135,19 @@ export function AuthProvider({ children }: PropsWithChildren): React.JSX.Element
 
   const endPasswordRecovery = useCallback(() => setPasswordRecovery({ status: 'none' }), []);
 
+  // `verifying` is set BEFORE the code is checked: a correct code signs the
+  // member in part-way through, and without it the gate would show the app
+  // before the new password had been chosen.
+  const verifyPasswordResetCode = useCallback(
+    async (email: string, code: string): Promise<Result<void>> => {
+      setPasswordRecovery({ status: 'verifying' });
+      const result = await checkResetCode.execute({ email, code });
+      setPasswordRecovery(result.ok ? { status: 'active' } : { status: 'none' });
+      return result;
+    },
+    [checkResetCode],
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       state,
@@ -128,6 +155,7 @@ export function AuthProvider({ children }: PropsWithChildren): React.JSX.Element
       isSignedIn: state.status === 'signedIn',
       passwordRecovery,
       endPasswordRecovery,
+      verifyPasswordResetCode,
       signIn: async (credentials) => {
         const result = await auth.signInWithPassword(credentials);
         // The subscription above updates the state, so nothing is set here.
@@ -138,7 +166,7 @@ export function AuthProvider({ children }: PropsWithChildren): React.JSX.Element
         if (!result.ok) throw result.error;
       },
     }),
-    [state, passwordRecovery, endPasswordRecovery, auth],
+    [state, passwordRecovery, endPasswordRecovery, verifyPasswordResetCode, auth],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

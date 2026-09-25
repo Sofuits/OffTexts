@@ -33,6 +33,7 @@ function makeAuth(overrides: Partial<AuthRepository> = {}): {
     verifySignUpCode: async () => success(SESSION),
     resendSignUpCode: async () => success(undefined),
     beginPasswordRecovery: async () => success(undefined),
+    verifyRecoveryCode: async () => success(undefined),
     updatePassword: async () => success(undefined),
     sendPasswordReset: async () => success(undefined),
     signOut: async () => success(undefined),

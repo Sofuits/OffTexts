@@ -81,6 +81,14 @@ export interface AuthRepository {
   sendPasswordReset(email: string): Promise<Result<void>>;
 
   /**
+   * Checks the 6-digit code from a password reset email.
+   *
+   * A correct code signs the member in — that session exists only so they can
+   * choose a new password, which the caller must ask for next.
+   */
+  verifyRecoveryCode(email: string, code: string): Promise<Result<void>>;
+
+  /**
    * Starts a session from the link in a password reset email.
    *
    * `link` is the whole URL the app was opened with. On success the member is

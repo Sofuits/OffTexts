@@ -41,6 +41,7 @@ function fakeAuth(overrides: Partial<AuthRepository> = {}): AuthRepository {
     sendMagicLink: async () => success(undefined),
     sendPasswordReset: async () => success(undefined),
     beginPasswordRecovery: async () => success(undefined),
+    verifyRecoveryCode: async () => success(undefined),
     updatePassword: async () => success(undefined),
     signOut: async () => success(undefined),
     ...overrides,

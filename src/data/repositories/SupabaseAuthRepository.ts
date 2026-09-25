@@ -162,6 +162,31 @@ export class SupabaseAuthRepository implements AuthRepository {
         return null;
       }
 
+      if (outcome.status === 'failed') {
+        // Supabase's reason, for whoever is debugging. It describes the
+        // project ("Signups not allowed…", "Database error saving new user"),
+        // not the member, and carries no token.
+        this.logger.warn('OAuth sign-in refused', {
+          provider,
+          error: outcome.error,
+          code: outcome.errorCode,
+          description: outcome.description,
+        });
+        if (outcome.errorCode === 'signup_disabled') {
+          throw new AppError('forbidden', 'New accounts cannot be created right now.');
+        }
+        if (outcome.error === 'server_error') {
+          throw new AppError(
+            'server',
+            'Signing in with Google failed at our end. Try again in a moment.',
+          );
+        }
+        throw new AppError(
+          'unauthenticated',
+          'Signing in with Google did not complete. Try again.',
+        );
+      }
+
       const { data, error } = await this.client.auth.getSession();
       if (error) throw error;
       return this.toSession(data.session);
@@ -193,6 +218,33 @@ export class SupabaseAuthRepository implements AuthRepository {
     return attempt(async () => {
       const { data, error } = await this.client.auth.signUp(credentials);
       if (error) throw error;
+
+      // With "Confirm email" on, Supabase answers a sign-up for an address that
+      // is already registered AND verified as if it were new — but sends no
+      // email, so a member waits on a code screen for a code that never comes.
+      // The tell is a user with no identities.
+      //
+      // PRODUCT DECISION: say so, and send them to sign in. It does let the
+      // sign-up form confirm that an address is registered — the disclosure
+      // Supabase's behaviour exists to avoid — and that trade was made on
+      // purpose, for the member who has simply forgotten they have an account.
+      // An address that is registered but NOT yet verified is not caught here:
+      // Supabase re-sends its code, and the code screen is the right place.
+      const alreadyRegistered =
+        Array.isArray(data.user?.identities) && data.user.identities.length === 0;
+      this.logger.info('Sign-up accepted', {
+        sessionReturned: data.session !== null,
+        alreadyRegistered,
+      });
+
+      if (alreadyRegistered) {
+        throw new AppError(
+          'validation',
+          'An account with this email already exists. Sign in instead.',
+          { field: 'email', reason: 'accountExists' },
+        );
+      }
+
       return this.toSession(data.session);
     }, this.classify);
   }
@@ -224,6 +276,7 @@ export class SupabaseAuthRepository implements AuthRepository {
     return attempt(async () => {
       const { error } = await this.client.auth.resend({ type: 'signup', email });
       if (error) throw error;
+      this.logger.info('Verification code resend accepted');
     }, this.classify);
   }
 
@@ -249,6 +302,22 @@ export class SupabaseAuthRepository implements AuthRepository {
         email,
         this.passwordResetRedirect ? { redirectTo: this.passwordResetRedirect } : undefined,
       );
+      if (error) throw error;
+      // "Accepted", not "sent": for an address with no account Supabase also
+      // answers success and sends nothing, so it cannot be told which address
+      // is registered. The address itself is never logged.
+      this.logger.info('Password reset request accepted');
+    }, this.classify);
+  }
+
+  /**
+   * `type: 'recovery'` checks the code the "Reset Password" template sends as
+   * `{{ .Token }}`. A correct code sets the session, which fires SIGNED_IN; the
+   * caller keeps the member on the reset flow until a new password is saved.
+   */
+  async verifyRecoveryCode(email: string, code: string): Promise<Result<void>> {
+    return attempt(async () => {
+      const { error } = await this.client.auth.verifyOtp({ email, token: code, type: 'recovery' });
       if (error) throw error;
     }, this.classify);
   }

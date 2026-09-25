@@ -5,13 +5,22 @@
  * needs it for password recovery, and the data layer must still load in a
  * browser for the admin portal.
  *
- * `oauthFlow.ts` has its own older `readTokens`. It was left alone while the
- * Google flow is out of scope; moving it onto this parser is a small follow-up.
+ * The Google sign-in redirect is read with it too (`oauthFlow.ts`), so both
+ * kinds of link are understood the same way.
  */
 
 export type AuthLinkParams =
   | { kind: 'tokens'; accessToken: string; refreshToken: string; type: string | null }
-  | { kind: 'error'; code: string | null; description: string | null }
+  | {
+      kind: 'error';
+      /** `error_code`, falling back to `error`: the most specific name there is. */
+      code: string | null;
+      /** The raw `error` parameter, e.g. `access_denied` or `server_error`. */
+      error: string | null;
+      /** The raw `error_code` parameter — Supabase's own code, when it sent one. */
+      errorCode: string | null;
+      description: string | null;
+    }
   | { kind: 'none' };
 
 /**
@@ -40,6 +49,8 @@ export function readAuthLink(url: string): AuthLinkParams {
     return {
       kind: 'error',
       code: params.get('error_code') ?? params.get('error'),
+      error: params.get('error'),
+      errorCode: params.get('error_code'),
       description: params.get('error_description'),
     };
   }
