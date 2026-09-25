@@ -11,7 +11,8 @@ import type { ProfileLocalDataSource } from '@/data/datasources/local';
 import { toPerson, toProfileUpdateRow } from '@/data/mappers';
 import type { Logger } from '@/infrastructure/logging';
 import type { ConnectivityMonitor } from '@/infrastructure/network';
-import { classifySupabaseError, type TypedSupabaseClient } from '@/infrastructure/supabase';
+import { classifySupabaseError } from '@/infrastructure/supabase/supabaseErrors';
+import type { TypedSupabaseClient } from '@/infrastructure/supabase/supabaseClient';
 
 /**
  * Profiles on Supabase, with an offline fallback.
@@ -56,7 +57,7 @@ export class SupabaseProfileRepository implements ProfileRepository {
       const { data, error } = await this.client
         .from('profiles')
         .select('*')
-        .eq('user_id', userId)
+        .eq('id', userId)
         .single();
 
       if (error) throw error;
@@ -95,7 +96,7 @@ export class SupabaseProfileRepository implements ProfileRepository {
       const { data, error } = await this.client
         .from('profiles')
         .update(toProfileUpdateRow(update))
-        .eq('user_id', userId)
+        .eq('id', userId)
         .select('*')
         .single();
 

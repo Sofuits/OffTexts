@@ -18,6 +18,7 @@ import {
   type MeetRepository,
   type MeetRequest,
   type NewReview,
+  type OAuthProvider,
   type ProfileRepository,
   type ProfileUpdate,
   type Result,
@@ -186,14 +187,39 @@ export class InMemoryReviewRepository implements ReviewRepository {
 /**
  * Auth with nobody really signed in.
  *
- * It reports a signed-in session immediately so the app is usable before the
- * sign-in screen exists (stage 2). `signInWithPassword` accepts any credentials
- * — which is precisely why this class must never be reachable in a build that
- * has Supabase configured. The composition root is what guarantees that.
+ * It starts SIGNED OUT, so the sign-in screen is the first thing a developer
+ * sees and the whole gated flow is exercised without a backend. Any sign-in
+ * attempt succeeds — which is precisely why this class must never be reachable
+ * in a build that has Supabase configured. The composition root guarantees
+ * that, and a test asserts it.
+ *
+ * The delay on `signInWithOAuth` stands in for the browser round trip, so the
+ * button's loading state is visible during development instead of being a
+ * frame long.
  */
+export type InMemoryAuthOptions = {
+  /**
+   * Report an existing session from the moment the app starts.
+   *
+   * Default false, so the auth gate is exercised the way a real member meets
+   * it. `env.devSkipAuth` turns it on to skip sign-in while the screens are
+   * being built.
+   *
+   * Note where this lives: the bypass is a property of the fake backend, not a
+   * branch in the navigator or the gate. Those stay exactly as they are and
+   * simply believe what the repository tells them — which is the point of the
+   * repository being an interface.
+   */
+  startSignedIn?: boolean;
+};
+
 export class InMemoryAuthRepository implements AuthRepository {
-  private session: Session | null = SEED_SESSION;
+  private session: Session | null;
   private readonly listeners = new Set<(state: AuthState) => void>();
+
+  constructor(options: InMemoryAuthOptions = {}) {
+    this.session = options.startSignedIn ? SEED_SESSION : null;
+  }
 
   private emit(): void {
     const state: AuthState = this.session
@@ -214,6 +240,13 @@ export class InMemoryAuthRepository implements AuthRepository {
     return () => this.listeners.delete(listener);
   }
 
+  async signInWithOAuth(_provider: OAuthProvider): Promise<Result<Session | null>> {
+    await delay(700);
+    this.session = SEED_SESSION;
+    this.emit();
+    return success(this.session);
+  }
+
   async signInWithPassword(credentials: Credentials): Promise<Result<Session>> {
     await delay();
     this.session = { user: { ...SEED_SESSION.user, email: credentials.email } };
@@ -226,6 +259,11 @@ export class InMemoryAuthRepository implements AuthRepository {
   }
 
   async sendMagicLink(): Promise<Result<void>> {
+    await delay();
+    return success(undefined);
+  }
+
+  async sendPasswordReset(): Promise<Result<void>> {
     await delay();
     return success(undefined);
   }

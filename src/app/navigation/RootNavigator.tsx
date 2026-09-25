@@ -14,7 +14,10 @@ import {
   MeetDetailsScreen,
   PersonProfileScreen,
   RatingsReviewsScreen,
+  SignInScreen,
+  SplashScreen,
 } from '@/presentation/screens';
+import { useAuth } from '@/app/providers/AuthProvider';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -27,6 +30,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  */
 export function RootNavigator(): React.JSX.Element {
   const theme = useTheme();
+  const { isRestoring, isSignedIn } = useAuth();
 
   // Hand our palette to React Navigation so its own chrome (headers, card
   // backgrounds, the flash between screens) matches the app.
@@ -47,10 +51,13 @@ export function RootNavigator(): React.JSX.Element {
     [theme],
   );
 
+  // Reading the stored session takes a moment. Rendering the sign-in screen
+  // during it flashes it at members who are already signed in.
+  if (isRestoring) return <SplashScreen />;
+
   return (
     <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator
-        initialRouteName="RootTabs"
         screenOptions={{
           headerStyle: { backgroundColor: theme.colors.surface },
           headerTintColor: theme.colors.textPrimary,
@@ -62,7 +69,20 @@ export function RootNavigator(): React.JSX.Element {
           contentStyle: { backgroundColor: theme.colors.background },
         }}
       >
-        <Stack.Screen name="RootTabs" component={BottomTabs} options={{ headerShown: false }} />
+        {/*
+          Conditional groups, not navigate() calls.
+
+          React Navigation unmounts the branch that is no longer rendered, so
+          signing out cannot leave a signed-in screen underneath, and there is
+          no back gesture from the tabs to the sign-in screen. Doing this with
+          navigate() instead leaves both in the stack and is how a signed-out
+          member ends up able to swipe back into the app.
+        */}
+        {isSignedIn ? (
+          <Stack.Screen name="RootTabs" component={BottomTabs} options={{ headerShown: false }} />
+        ) : (
+          <Stack.Screen name="SignIn" component={SignInScreen} options={{ headerShown: false }} />
+        )}
 
         <Stack.Screen
           name="EditProfile"

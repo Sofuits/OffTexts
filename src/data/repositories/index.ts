@@ -5,6 +5,7 @@ export {
   InMemoryProfileRepository,
   InMemoryReviewRepository,
 } from './InMemoryRepositories';
+export { SupabaseAdminRepository } from './SupabaseAdminRepository';
 export { SupabaseAuthRepository } from './SupabaseAuthRepository';
 export { SupabaseDiscoverRepository } from './SupabaseDiscoverRepository';
 export { SupabaseMeetRepository } from './SupabaseMeetRepository';

@@ -70,7 +70,13 @@ export function createTestQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: 0, staleTime: 0 },
-      mutations: { retry: false },
+      // `gcTime` on mutations matters as much as on queries, and is easy to
+      // miss because it has its own default. A settled mutation is kept in the
+      // cache for five minutes, and that timer holds the Node event loop open
+      // — so a suite whose tests all pass in two seconds then hangs until Jest
+      // is killed. Zero here means the mutation is dropped as soon as it
+      // settles, and `npm test` exits on its own.
+      mutations: { retry: false, gcTime: 0 },
     },
   });
 }

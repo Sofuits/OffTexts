@@ -48,6 +48,27 @@ function importsOf(file: string): string[] {
   return [...code.matchAll(/from\s+['"]([^'"]+)['"]/g)].map((match) => match[1] as string);
 }
 
+/**
+ * Anything that only exists on a phone.
+ *
+ * `import type` is excluded from this check by construction: a type-only import
+ * is erased before a bundler ever sees it, so it cannot pull a native module
+ * into a browser build. Everything here is a runtime import.
+ */
+const NATIVE_MODULES = [
+  'react-native',
+  '@react-native-async-storage/async-storage',
+  '@react-native-community/netinfo',
+  '@react-navigation/native',
+  'expo-constants',
+  'expo-linking',
+  'expo-secure-store',
+  'expo-web-browser',
+];
+
+const isNative = (specifier: string): boolean =>
+  NATIVE_MODULES.some((native) => specifier === native || specifier.startsWith(`${native}/`));
+
 describe('architecture boundaries', () => {
   it('finds source files to check', () => {
     expect(filesIn('domain').length).toBeGreaterThan(5);
@@ -71,6 +92,77 @@ describe('architecture boundaries', () => {
           specifier.startsWith('@tanstack');
 
         if (forbidden) offenders.push(`${file} -> ${specifier}`);
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  /**
+   * The admin web app imports `domain/` and `data/` verbatim and runs them in a
+   * browser. One `import { env }` or one reach through the
+   * `infrastructure/supabase` barrel — which re-exports the OAuth flow and the
+   * AppState bridge — puts `expo-web-browser` in a Vite bundle and breaks it,
+   * with a runtime error rather than a compile one.
+   *
+   * ESLint cannot express this rule usefully, because the same barrel is
+   * perfectly legal from `app/`. So it is asserted here instead.
+   */
+  it('the domain and data layers run in a browser', () => {
+    const offenders: string[] = [];
+
+    for (const layer of ['domain', 'data']) {
+      for (const file of filesIn(layer)) {
+        for (const specifier of importsOf(file)) {
+          if (isNative(specifier)) {
+            offenders.push(`${file} -> ${specifier}`);
+          }
+          // The barrel is the trap: it looks harmless and pulls in three
+          // native modules. Deep-import the file you actually want.
+          if (specifier === '@/infrastructure/supabase') {
+            offenders.push(
+              `${file} -> the infrastructure/supabase barrel (import the file directly)`,
+            );
+          }
+          if (specifier === '@/shared/config') {
+            offenders.push(
+              `${file} -> @/shared/config (reads expo-constants; take it as a parameter)`,
+            );
+          }
+        }
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  /**
+   * The theme modules the admin portal imports.
+   *
+   * Not the whole of `shared/`, and deliberately not the `shared/theme` barrel:
+   * `shadows.ts` does a runtime `import { Platform } from 'react-native'`, and
+   * it is right to — Android elevation and iOS shadow offsets are native ideas
+   * with no CSS equivalent. The barrel re-exports it, so importing the theme
+   * the convenient way puts React Native in a Vite bundle and the build dies on
+   * Flow syntax in a file nobody meant to include.
+   *
+   * These three are the tokens that genuinely are shared. Listing them by name
+   * is the point: it says exactly which files two products depend on.
+   */
+  it('the shared design tokens run in a browser', () => {
+    const offenders: string[] = [];
+
+    for (const file of [
+      'shared/theme/colors.ts',
+      'shared/theme/spacing.ts',
+      'shared/theme/typography.ts',
+    ]) {
+      for (const specifier of importsOf(file)) {
+        // `import type { TextStyle } from 'react-native'` is fine and typography
+        // uses it. Only runtime imports reach a bundle, so match on those.
+        const source = readFileSync(path.join(SRC, file), 'utf8');
+        const typeOnly = new RegExp(`import\\s+type[^;]*from\\s+['"]${specifier}['"]`).test(source);
+        if (isNative(specifier) && !typeOnly) offenders.push(`${file} -> ${specifier}`);
       }
     }
 

@@ -2,8 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 import type { Logger } from '@/infrastructure/logging';
 import type { KeyValueStore } from '@/infrastructure/storage';
-import { env } from '@/shared/config';
-import type { Database } from './database.types';
+import type { Database } from './rows';
 
 /**
  * THE ONLY FILE THAT IMPORTS THE SUPABASE SDK.
@@ -36,6 +35,17 @@ export type SupabaseClientConfig = {
   anonKey: string;
   storage: KeyValueStore;
   logger: Logger;
+  /**
+   * Which environment this client is talking to. Log detail only.
+   *
+   * Passed in rather than read from `@/shared/config`, because that module
+   * imports `expo-constants` — and this file is imported by every Supabase
+   * repository, which the admin web app reuses verbatim. One `import { env }`
+   * here would drag Expo into a browser bundle and make the data layer
+   * native-only. The composition root knows the environment; this file does
+   * not need to.
+   */
+  environment?: string;
 };
 
 /**
@@ -56,7 +66,7 @@ export function createSupabaseClient(config: SupabaseClientConfig): TypedSupabas
     );
   }
 
-  config.logger.info('Supabase client created', { environment: env.environment });
+  config.logger.info('Supabase client created', { environment: config.environment ?? 'unknown' });
 
   return createClient<Database>(config.url, config.anonKey, {
     auth: {
