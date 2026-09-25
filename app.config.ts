@@ -46,15 +46,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // resolves at runtime and not only in the editor.
     tsconfigPaths: true,
   },
-  plugins: [
+    plugins: [
+    'expo-web-browser',
     [
       'expo-build-properties',
       {
         android: {
-          // Pinned rather than inherited. Google Play requires new apps and
-          // updates to target Android 16 (API 36) from 31 August 2026; having
-          // the number here means it is reviewed when it changes instead of
-          // moving silently with an Expo upgrade.
           compileSdkVersion: 36,
           targetSdkVersion: 36,
         },
@@ -62,6 +59,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
   ],
   extra: {
+  
     // Read back through src/shared/config/env.ts, never process.env directly.
     // Blank Supabase values are the signal to wire in-memory repositories.
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
