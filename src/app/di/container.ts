@@ -64,6 +64,7 @@ import {
   bridgeSupabaseToAppState,
   createSupabaseClient,
   passwordResetRedirect,
+  reportRawSupabaseErrors,
   runOAuthFlow,
   type TypedSupabaseClient,
 } from '@/infrastructure/supabase';
@@ -217,6 +218,15 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
     });
     // Without this, the session can expire while the app is backgrounded.
     teardown.push(bridgeSupabaseToAppState(client));
+    // Development only: the raw PostgREST error (code, message, details,
+    // hint) behind every generic "Something went wrong", so an unmapped code
+    // can be diagnosed from the device. Same gate as the demo sign-in, so a
+    // production build never logs a database message.
+    reportRawSupabaseErrors(
+      env.hasDemoSignIn
+        ? (raw) => logger.warn(`Supabase error, shown as '${raw.kind}' (dev only)`, raw)
+        : null,
+    );
     repositories = buildSupabaseRepositories(client, logger, connectivity, store);
   } else if (env.devSkipAuth) {
     // Loud on purpose. The cost of this flag is someone spending an afternoon
