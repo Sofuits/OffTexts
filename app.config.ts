@@ -76,6 +76,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     enableGoogleAuth: process.env.EXPO_PUBLIC_ENABLE_GOOGLE_AUTH,
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
     enableAnalytics: process.env.EXPO_PUBLIC_ENABLE_ANALYTICS,
+    // Seconds before "Send a new code" is offered again. Copy it from the
+    // Supabase Dashboard; see src/shared/config/env.ts.
+    authResendCooldownSeconds: process.env.EXPO_PUBLIC_AUTH_RESEND_COOLDOWN_SECONDS,
+    // The Supabase Dashboard's "Password requirements" setting, so the sign-up
+    // form lists the same rules the server enforces.
+    authPasswordRequirements: process.env.EXPO_PUBLIC_AUTH_PASSWORD_REQUIREMENTS,
     // A one-tap sign-in for reviewing the app while the real sign-in screen is
     // being built by somebody else. These SHIP IN THE BUNDLE and are readable
     // by anyone who downloads it, so they may only ever point at a throwaway

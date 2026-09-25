@@ -16,6 +16,7 @@ import {
   PersonProfileScreen,
   RatingsReviewsScreen,
   RequestMeetScreen,
+  SetNewPasswordScreen,
   SignInScreen,
   SplashScreen,
 } from '@/presentation/screens';
@@ -36,7 +37,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  */
 export function RootNavigator(): React.JSX.Element {
   const theme = useTheme();
-  const { isRestoring, isSignedIn } = useAuth();
+  const { isRestoring, isSignedIn, passwordRecovery } = useAuth();
 
   // Hand our palette to React Navigation so its own chrome (headers, card
   // backgrounds, the flash between screens) matches the app.
@@ -60,6 +61,11 @@ export function RootNavigator(): React.JSX.Element {
   // Reading the stored session takes a moment. Rendering the sign-in screen
   // during it flashes it at members who are already signed in.
   if (isRestoring) return <SplashScreen />;
+
+  // A reset link signs the member in, but that session exists only so they can
+  // choose a new password. Until they do — or give up — nothing else is shown,
+  // including the app the session would otherwise open.
+  if (passwordRecovery.status !== 'none') return <SetNewPasswordScreen />;
 
   return (
     <NavigationContainer theme={navigationTheme}>

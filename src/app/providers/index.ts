@@ -1,5 +1,5 @@
 export { AppProviders } from './AppProviders';
-export { AuthProvider, useAuth } from './AuthProvider';
+export { AuthProvider, useAuth, type PasswordRecovery } from './AuthProvider';
 export {
   ConnectivityProvider,
   useConnectivityState,

@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react-native';
+import { Linking } from 'react-native';
 
 import { createTestContainer } from '@/app/di';
 import { RootNavigator } from '@/app/navigation';
@@ -37,6 +38,10 @@ function authIn(state: AuthState): AuthRepository {
     signInWithPassword: async () => success(SESSION),
     signUpWithPassword: async () => success(SESSION),
     sendMagicLink: async () => success(undefined),
+    verifySignUpCode: async () => success(SESSION),
+    resendSignUpCode: async () => success(undefined),
+    beginPasswordRecovery: async () => success(undefined),
+    updatePassword: async () => success(undefined),
     sendPasswordReset: async () => success(undefined),
     signOut: async () => success(undefined),
   };
@@ -147,5 +152,66 @@ describe('auth gate', () => {
     // somebody through onboarding again would write over what they have.
     expect(await screen.findByTestId('screen-today')).toBeTruthy();
     expect(screen.queryByTestId('onboarding-step-1')).toBeNull();
+  });
+
+  describe('password reset link', () => {
+    const RESET_LINK =
+      'offtexts://auth/reset#access_token=at&expires_in=3600&refresh_token=rt&type=recovery';
+
+    afterEach(() => jest.restoreAllMocks());
+
+    it('asks for a new password instead of opening the app', async () => {
+      jest.spyOn(Linking, 'getInitialURL').mockResolvedValue(RESET_LINK);
+      const links: string[] = [];
+      const auth: AuthRepository = {
+        ...authIn({ status: 'signedIn', session: SESSION }),
+        beginPasswordRecovery: async (link) => {
+          links.push(link);
+          return success(undefined);
+        },
+      };
+
+      renderWith(auth);
+
+      // The link signs the member in, but that session is for this one job.
+      expect(await screen.findByTestId('input-new-password')).toBeTruthy();
+      expect(links).toEqual([RESET_LINK]);
+      expect(screen.queryByTestId('screen-today')).toBeNull();
+    });
+
+    it('explains an expired link and leads back to sign in', async () => {
+      jest.spyOn(Linking, 'getInitialURL').mockResolvedValue(RESET_LINK);
+      const auth: AuthRepository = {
+        ...authIn({ status: 'signedOut' }),
+        beginPasswordRecovery: async () =>
+          failure(
+            new AppError('validation', 'That reset link has expired. Ask for a new one.', {
+              reason: 'codeInvalidOrExpired',
+            }),
+          ),
+      };
+
+      renderWith(auth);
+
+      expect(await screen.findByTestId('reset-link-error')).toBeTruthy();
+      expect(screen.queryByTestId('input-new-password')).toBeNull();
+    });
+
+    it('ignores links that are not reset links', async () => {
+      jest.spyOn(Linking, 'getInitialURL').mockResolvedValue('offtexts://auth/callback#x=1');
+      const recoveries: string[] = [];
+      const auth: AuthRepository = {
+        ...authIn({ status: 'signedOut' }),
+        beginPasswordRecovery: async (link) => {
+          recoveries.push(link);
+          return success(undefined);
+        },
+      };
+
+      renderWith(auth);
+
+      expect(await screen.findByTestId('screen-sign-in')).toBeTruthy();
+      expect(recoveries).toHaveLength(0);
+    });
   });
 });

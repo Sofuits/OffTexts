@@ -35,11 +35,16 @@ import {
   GetScheduledMeets,
   RequestMeet,
   RequestPasswordReset,
+  PASSWORD_REQUIREMENTS,
+  type PasswordRequirement,
+  ResendVerificationCode,
   SignIn,
   SignInWithGoogle,
   SignOut,
   SignUp,
   SubmitReview,
+  UpdatePassword,
+  VerifyEmail,
 } from '@/domain/usecases';
 import { NoopAnalytics, type Analytics } from '@/infrastructure/analytics';
 import { ConsoleLogger, SentryLogger, type Logger } from '@/infrastructure/logging';
@@ -102,7 +107,10 @@ export type Container = {
   useCases: {
     signIn: SignIn;
     signUp: SignUp;
+    verifyEmail: VerifyEmail;
+    resendVerificationCode: ResendVerificationCode;
     requestPasswordReset: RequestPasswordReset;
+    updatePassword: UpdatePassword;
     signInWithGoogle: SignInWithGoogle;
     signOut: SignOut;
     completeOnboarding: CompleteOnboarding;
@@ -121,6 +129,8 @@ export type Container = {
   };
   /** Which backend was wired. For a debug screen and for tests. */
   backend: 'supabase' | 'in-memory';
+  /** The password rules the forms show, from the Supabase setting. */
+  passwordRequirement: PasswordRequirement;
   /** Stops anything long-lived the container started. Call on teardown. */
   dispose: () => void;
 };
@@ -132,6 +142,24 @@ export type ContainerOverrides = {
   /** Force a backend regardless of configuration. */
   forceBackend?: 'supabase' | 'in-memory';
 };
+
+/**
+ * The Supabase "Password requirements" setting from config, checked against
+ * the values Supabase actually has. An unrecognised value is logged and treated
+ * as "no required characters" — the server still enforces its real setting, so
+ * the cost of a typo is a less helpful form, not a weaker password.
+ */
+function readPasswordRequirement(logger: Logger): PasswordRequirement {
+  const value = env.authPasswordRequirements;
+  if (!value) return null;
+  const known = PASSWORD_REQUIREMENTS.find((requirement) => requirement === value);
+  if (known) return known;
+  logger.warn('EXPO_PUBLIC_AUTH_PASSWORD_REQUIREMENTS is not a value Supabase uses; ignoring it.', {
+    value,
+    allowed: PASSWORD_REQUIREMENTS,
+  });
+  return null;
+}
 
 function buildLogger(): Logger {
   const console = new ConsoleLogger();
@@ -232,13 +260,17 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
   }
 
   repositories = { ...repositories, ...overrides.repositories };
+  const passwordRequirement = readPasswordRequirement(logger);
 
   return {
     repositories,
     useCases: {
       signIn: new SignIn(repositories.auth),
-      signUp: new SignUp(repositories.auth),
+      signUp: new SignUp(repositories.auth, passwordRequirement),
+      verifyEmail: new VerifyEmail(repositories.auth),
+      resendVerificationCode: new ResendVerificationCode(repositories.auth),
       requestPasswordReset: new RequestPasswordReset(repositories.auth),
+      updatePassword: new UpdatePassword(repositories.auth, passwordRequirement),
       signInWithGoogle: new SignInWithGoogle(repositories.auth),
       // Signing out must also drop whatever the previous member left on disk,
       // or the next person to sign in on this phone sees their cached profile.
@@ -260,6 +292,7 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
       store,
     },
     backend,
+    passwordRequirement,
     dispose: () => teardown.forEach((stop) => stop()),
   };
 }

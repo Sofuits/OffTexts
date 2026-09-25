@@ -7,7 +7,11 @@
  * so the only way to remove the member's data is to know the list.
  */
 export const STORAGE_KEYS = {
-  /** Supabase writes the session here. It holds a refresh token: SecureStore only. */
+  /**
+   * NOT where the Supabase session lives. Supabase stores it under its own key
+   * (`sb-<project-ref>-auth-token`) and removes it itself on sign-out. Kept so
+   * a value written here by an older build is still cleared.
+   */
   authSession: '@offtexts/auth-session',
   onboardingComplete: '@offtexts/onboarding-complete',
   themePreference: '@offtexts/theme-preference',

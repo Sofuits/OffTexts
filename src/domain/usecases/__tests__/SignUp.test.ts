@@ -30,6 +30,10 @@ function makeAuth(overrides: Partial<AuthRepository> = {}): {
       return success(SESSION);
     },
     sendMagicLink: async () => success(undefined),
+    verifySignUpCode: async () => success(SESSION),
+    resendSignUpCode: async () => success(undefined),
+    beginPasswordRecovery: async () => success(undefined),
+    updatePassword: async () => success(undefined),
     sendPasswordReset: async () => success(undefined),
     signOut: async () => success(undefined),
     ...overrides,

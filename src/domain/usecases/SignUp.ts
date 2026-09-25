@@ -7,28 +7,7 @@ import {
   type Result,
 } from '@/domain/repositories';
 import { isValidEmail } from '@/shared/validation';
-
-/**
- * The shortest password the product will accept.
- *
- * Eight, not six. Supabase's own default is six and that is too short to be
- * worth having — but the more important half of this decision is what is NOT
- * here: no required digit, no required symbol, no required capital.
- *
- * Forced composition rules are counterproductive. They push people towards
- * `Password1!` and towards writing the result down, and they make a long
- * memorable passphrase illegal while permitting a short ugly one. Length is
- * the property that actually costs an attacker something.
- */
-export const MIN_PASSWORD_LENGTH = 8;
-
-/**
- * bcrypt, which Supabase uses, silently truncates beyond 72 BYTES. A member
- * whose password is longer would find that only the first 72 bytes mattered,
- * and — worse — that pasting a slightly different long password still worked.
- * Rejecting it up front is honest; truncating it quietly is not.
- */
-export const MAX_PASSWORD_LENGTH = 72;
+import { type PasswordRequirement, validateNewPassword } from './passwordRules';
 
 export type SignUpInput = Credentials & {
   /**
@@ -65,7 +44,11 @@ export type SignUpOutcome =
  * already knew.
  */
 export class SignUp {
-  constructor(private readonly auth: AuthRepository) {}
+  constructor(
+    private readonly auth: AuthRepository,
+    /** The project's Supabase "Password requirements" setting. */
+    private readonly passwordRequirement: PasswordRequirement = null,
+  ) {}
 
   async execute(input: SignUpInput): Promise<Result<SignUpOutcome>> {
     const email = input.email.trim().toLowerCase();
@@ -76,37 +59,12 @@ export class SignUp {
       );
     }
 
-    if (input.password.length < MIN_PASSWORD_LENGTH) {
-      return failure(
-        new AppError(
-          'validation',
-          `Use at least ${MIN_PASSWORD_LENGTH} characters. A few words you will remember beats a short jumble you will not.`,
-          { field: 'password' },
-        ),
-      );
-    }
-
-    // Byte length, not character length: an emoji is four bytes and a member
-    // using them would hit bcrypt's limit long before 72 characters.
-    if (new TextEncoder().encode(input.password).length > MAX_PASSWORD_LENGTH) {
-      return failure(
-        new AppError(
-          'validation',
-          `Passwords cannot be longer than ${MAX_PASSWORD_LENGTH} bytes.`,
-          {
-            field: 'password',
-          },
-        ),
-      );
-    }
-
-    if (input.password !== input.confirmPassword) {
-      return failure(
-        new AppError('validation', 'The two passwords do not match.', {
-          field: 'confirmPassword',
-        }),
-      );
-    }
+    const problem = validateNewPassword(
+      input.password,
+      input.confirmPassword,
+      this.passwordRequirement,
+    );
+    if (problem) return failure(problem);
 
     const result = await this.auth.signUpWithPassword({ email, password: input.password });
     if (!result.ok) return result;

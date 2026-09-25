@@ -24,27 +24,68 @@ export const ERROR_KINDS = [
   'validation',
   /** The server broke. Not the caller's fault. */
   'server',
+  /**
+   * The server refused because too many requests were made. Not retryable
+   * straight away: trying again immediately is refused again, and on the email
+   * endpoints it can use up the project's hourly sending allowance.
+   */
+  'rateLimited',
   /** Anything unclassified. Treated as unrecoverable. */
   'unknown',
 ] as const;
 
 export type ErrorKind = (typeof ERROR_KINDS)[number];
 
+/**
+ * Why an authentication call failed, when the screen has to react to the
+ * specific reason rather than only show the message.
+ *
+ * `emailNotConfirmed` is the clearest case: the sign-in screen must offer the
+ * way to verify, which it can only do if it can tell that failure apart from a
+ * wrong password without reading the message text.
+ */
+export const AUTH_FAILURE_REASONS = [
+  'invalidCredentials',
+  'emailNotConfirmed',
+  'codeInvalidOrExpired',
+  'weakPassword',
+  'rateLimited',
+  'sessionExpired',
+] as const;
+
+export type AuthFailureReason = (typeof AUTH_FAILURE_REASONS)[number];
+
+export type AppErrorOptions = {
+  field?: string;
+  cause?: unknown;
+  reason?: AuthFailureReason;
+  retryAfterSeconds?: number;
+};
+
 export class AppError extends Error {
   readonly kind: ErrorKind;
   /** For `validation`: which input was rejected. */
   readonly field?: string;
+  /** For authentication failures the UI handles specifically. */
+  readonly reason?: AuthFailureReason;
+  /**
+   * For `rateLimited`: how long the server said to wait, when it said.
+   * Absent when the server gave no figure — never filled in with a guess.
+   */
+  readonly retryAfterSeconds?: number;
   /**
    * The original error, kept for logging. Never shown to a user.
    * `override` because ES2022 added `cause` to Error itself.
    */
   override readonly cause?: unknown;
 
-  constructor(kind: ErrorKind, message: string, options?: { field?: string; cause?: unknown }) {
+  constructor(kind: ErrorKind, message: string, options?: AppErrorOptions) {
     super(message);
     this.name = 'AppError';
     this.kind = kind;
     this.field = options?.field;
+    this.reason = options?.reason;
+    this.retryAfterSeconds = options?.retryAfterSeconds;
     this.cause = options?.cause;
   }
 

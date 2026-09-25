@@ -10,6 +10,7 @@ import {
   type Result,
 } from '@/domain/repositories';
 import type { Logger } from '@/infrastructure/logging';
+import { readAuthLink } from '@/infrastructure/supabase/authLinks';
 import { classifySupabaseError } from '@/infrastructure/supabase/supabaseErrors';
 import type { OAuthOutcome } from '@/infrastructure/supabase/oauthFlow';
 import type { TypedSupabaseClient } from '@/infrastructure/supabase/supabaseClient';
@@ -58,6 +59,39 @@ export class SupabaseAuthRepository implements AuthRepository {
   ) {}
 
   /**
+   * Classifies a failure and logs what Supabase actually said.
+   *
+   * Only the code, HTTP status and error name — never the email, the password
+   * or a token. Without this, "Something went wrong" on a phone is a dead end:
+   * the member-facing message is deliberately vague, and the reason is only
+   * otherwise visible in the Supabase Dashboard's auth logs.
+   */
+  private readonly classify = (error: unknown): AppError => {
+    const raw = (error ?? {}) as {
+      code?: unknown;
+      status?: unknown;
+      name?: unknown;
+      message?: unknown;
+    };
+    const classified = classifySupabaseError(error);
+    // For a 5xx the client drops Supabase's error code and keeps only the
+    // message, so the message is the only record of what broke. Server faults
+    // ("Error sending confirmation email") describe the project, not the
+    // member, so logging them exposes nothing personal. Lower statuses are
+    // left out: their messages can echo what the member typed.
+    const serverMessage =
+      typeof raw.status === 'number' && raw.status >= 500 ? raw.message : undefined;
+    this.logger.warn('Auth request failed', {
+      code: raw.code,
+      status: raw.status,
+      name: raw.name,
+      kind: classified.kind,
+      serverMessage,
+    });
+    return classified;
+  };
+
+  /**
    * `profileId` is deliberately null here.
    *
    * Resolving it means a second query into `profiles`, and this runs on every
@@ -81,7 +115,7 @@ export class SupabaseAuthRepository implements AuthRepository {
       const { data, error } = await this.client.auth.getSession();
       if (error) throw error;
       return this.toSession(data.session);
-    }, classifySupabaseError);
+    }, this.classify);
   }
 
   observeAuthState(listener: (state: AuthState) => void): () => void {
@@ -131,7 +165,7 @@ export class SupabaseAuthRepository implements AuthRepository {
       const { data, error } = await this.client.auth.getSession();
       if (error) throw error;
       return this.toSession(data.session);
-    }, classifySupabaseError);
+    }, this.classify);
 
     return result;
   }
@@ -141,7 +175,7 @@ export class SupabaseAuthRepository implements AuthRepository {
       const { data, error } = await this.client.auth.signInWithPassword(credentials);
       if (error) throw error;
       return this.toSession(data.session);
-    }, classifySupabaseError);
+    }, this.classify);
 
     if (!result.ok) return result;
     if (!result.value) {
@@ -160,14 +194,44 @@ export class SupabaseAuthRepository implements AuthRepository {
       const { data, error } = await this.client.auth.signUp(credentials);
       if (error) throw error;
       return this.toSession(data.session);
-    }, classifySupabaseError);
+    }, this.classify);
+  }
+
+  /**
+   * `type: 'email'` is Supabase's type for an emailed code, and it covers the
+   * sign-up confirmation code: the code the "Confirm signup" template sends as
+   * `{{ .Token }}` is checked against the same token as the link would be.
+   */
+  async verifySignUpCode(email: string, code: string): Promise<Result<Session>> {
+    const result = await attempt(async () => {
+      const { data, error } = await this.client.auth.verifyOtp({
+        email,
+        token: code,
+        type: 'email',
+      });
+      if (error) throw error;
+      return this.toSession(data.session);
+    }, this.classify);
+
+    if (!result.ok) return result;
+    if (!result.value) {
+      return failure(new AppError('unknown', 'Your email is verified. Sign in to continue.'));
+    }
+    return success(result.value);
+  }
+
+  async resendSignUpCode(email: string): Promise<Result<void>> {
+    return attempt(async () => {
+      const { error } = await this.client.auth.resend({ type: 'signup', email });
+      if (error) throw error;
+    }, this.classify);
   }
 
   async sendMagicLink(email: string): Promise<Result<void>> {
     return attempt(async () => {
       const { error } = await this.client.auth.signInWithOtp({ email });
       if (error) throw error;
-    }, classifySupabaseError);
+    }, this.classify);
   }
 
   /**
@@ -186,13 +250,70 @@ export class SupabaseAuthRepository implements AuthRepository {
         this.passwordResetRedirect ? { redirectTo: this.passwordResetRedirect } : undefined,
       );
       if (error) throw error;
-    }, classifySupabaseError);
+    }, this.classify);
   }
 
+  /**
+   * The reset email's link lands here, as the URL the app was opened with.
+   *
+   * The client uses Supabase's implicit flow, so a good link carries the
+   * session in its fragment and `setSession` is all it takes. An expired or
+   * already-used link carries an `error_code` instead, which is reported as
+   * such rather than as "something went wrong", because the fix — ask for a
+   * new link — is something the member can do.
+   */
+  async beginPasswordRecovery(link: string): Promise<Result<void>> {
+    const parsed = readAuthLink(link);
+
+    if (parsed.kind === 'error') {
+      this.logger.info('Password reset link rejected', { code: parsed.code });
+      return failure(
+        new AppError(
+          'validation',
+          'That reset link has expired or has already been used. Ask for a new one.',
+          { reason: 'codeInvalidOrExpired' },
+        ),
+      );
+    }
+
+    if (parsed.kind === 'none') {
+      return failure(
+        new AppError('validation', 'That reset link is incomplete. Ask for a new one.', {
+          reason: 'codeInvalidOrExpired',
+        }),
+      );
+    }
+
+    return attempt(async () => {
+      const { error } = await this.client.auth.setSession({
+        access_token: parsed.accessToken,
+        refresh_token: parsed.refreshToken,
+      });
+      if (error) throw error;
+    }, this.classify);
+  }
+
+  async updatePassword(password: string): Promise<Result<void>> {
+    return attempt(async () => {
+      const { error } = await this.client.auth.updateUser({ password });
+      if (error) throw error;
+    }, this.classify);
+  }
+
+  /**
+   * `scope: 'global'` revokes every refresh token the member has, so every
+   * device is signed out at its next refresh. It is the library's default, but
+   * written out because "all sessions" is the product decision and a default
+   * can change under us.
+   *
+   * The client removes the session on this device even when the server call
+   * fails, so an offline sign-out still signs this phone out — the error that
+   * comes back means only that other devices were not reached.
+   */
   async signOut(): Promise<Result<void>> {
     return attempt(async () => {
-      const { error } = await this.client.auth.signOut();
+      const { error } = await this.client.auth.signOut({ scope: 'global' });
       if (error) throw error;
-    }, classifySupabaseError);
+    }, this.classify);
   }
 }
