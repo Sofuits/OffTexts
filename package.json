@@ -61,9 +61,10 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
     "test": "jest",
+    "test:scripts": "node --test scripts/seed-demo.test.mjs",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "verify": "npm run typecheck && npm run lint && npm run format:check && npm test",
+    "verify": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run test:scripts",
     "doctor": "npx expo-doctor",
     "types:generate": "node scripts/generate-types.mjs --local > src/infrastructure/supabase/database.types.ts && prettier --write src/infrastructure/supabase/database.types.ts"
   },
