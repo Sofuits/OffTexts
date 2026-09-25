@@ -15,9 +15,38 @@ import type { MeetId, PersonId } from '@/domain/entities';
  * parent stack, not in the tabs.
  */
 export type AvailabilityFlowParamList = {
-  AvailabilityStart: undefined;
+ AvailabilityStart: undefined;
   AvailabilitySelectDates: undefined;
   AvailabilitySharedDates: undefined;
+  AvailabilitySelectTime: { selectedDate: string };
+  AvailabilitySharedTimes: { selectedDate: string };
+  AvailabilityChooseDate: undefined;
+AvailabilityDateSelected: {
+  selectedDate: string;
+};
+  AvailabilityConfirmed: {
+    selectedDate: string;
+    selectedTime: string;
+  };
+};
+export type RootStackParamList = {
+  RootTabs: NavigatorScreenParams<BottomTabParamList> | undefined;
+  EditProfile: undefined;
+  PersonProfile: { personId: PersonId; personName: string };
+  MeetDetails: { meetId: MeetId };
+  RatingsReviews: { meetId: MeetId; personName: string };
+
+  AvailabilityStart: undefined;
+  AvailabilitySelectDates: undefined;
+  AvailabilitySharedDates: {
+  selectedDates: string[];
+};
+  AvailabilityChooseDate: {
+  commonDates: string[];
+};
+  AvailabilityDateSelected: {
+    selectedDate: string;
+  };
   AvailabilitySelectTime: { selectedDate: string };
   AvailabilitySharedTimes: { selectedDate: string };
   AvailabilityConfirmed: {
@@ -28,6 +57,7 @@ export type AvailabilityFlowParamList = {
 export type RootStackParamList = {
   /** The tab navigator, as a single route on the stack. */
   RootTabs: NavigatorScreenParams<BottomTabParamList> | undefined;
+
   /**
    * Shown when signed out. It is on the same stack rather than in a separate
    * navigator so that signing in or out swaps the screens with the stack's own
@@ -35,18 +65,30 @@ export type RootStackParamList = {
    * later without remounting the tree.
    */
   SignIn: undefined;
+
   EditProfile: undefined;
   PersonProfile: { personId: PersonId; personName: string };
   MeetDetails: { meetId: MeetId };
-  RatingsReviews: { meetId: MeetId; personName: string }; AvailabilityStart: undefined;
+  RatingsReviews: { meetId: MeetId; personName: string };
+
+  AvailabilityStart: undefined;
   AvailabilitySelectDates: undefined;
-  AvailabilitySharedDates: undefined;
+  AvailabilitySharedDates: {
+    selectedDates: string[];
+  };
+  AvailabilityChooseDate: {
+    commonDates: string[];
+  };
+  AvailabilityDateSelected: {
+    selectedDate: string;
+  };
   AvailabilitySelectTime: { selectedDate: string };
   AvailabilitySharedTimes: { selectedDate: string };
   AvailabilityConfirmed: {
     selectedDate: string;
     selectedTime: string;
-};};
+  };
+};
 
 export type BottomTabParamList = {
   Profile: undefined;

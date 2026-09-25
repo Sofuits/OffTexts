@@ -11,13 +11,16 @@ import { BottomTabs } from '@/app/navigation/BottomTabs';
 import type { RootStackParamList } from '@/app/navigation/types';
 import {
   AvailabilitySelectDatesScreen,
+  AvailabilitySharedDatesScreen,
   AvailabilityStartScreen,
+  AvailabilityDateSelectedScreen,
   EditProfileScreen,
   MeetDetailsScreen,
   PersonProfileScreen,
   RatingsReviewsScreen,
   SignInScreen,
   SplashScreen,
+  AvailabilityChooseDateScreen,
 } from '@/presentation/screens';
 import { useAuth } from '@/app/providers/AuthProvider';
 
@@ -118,6 +121,21 @@ export function RootNavigator(): React.JSX.Element {
 <Stack.Screen
   name="AvailabilitySelectDates"
   component={AvailabilitySelectDatesScreen}
+  options={{ headerShown: false }}
+/>
+<Stack.Screen
+  name="AvailabilitySharedDates"
+  component={AvailabilitySharedDatesScreen}
+  options={{ headerShown: false }}
+/>
+<Stack.Screen
+  name="AvailabilityChooseDate"
+  component={AvailabilityChooseDateScreen}
+  options={{ headerShown: false }}
+/>
+<Stack.Screen
+  name="AvailabilityDateSelected"
+  component={AvailabilityDateSelectedScreen}
   options={{ headerShown: false }}
 />
         <Stack.Screen

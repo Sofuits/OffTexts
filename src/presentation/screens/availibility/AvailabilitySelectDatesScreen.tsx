@@ -120,7 +120,9 @@ export function AvailabilitySelectDatesScreen(): React.JSX.Element {
       return;
     }
 
-    navigation.navigate(NEXT_SCREEN);
+    navigation.navigate(NEXT_SCREEN, {
+      selectedDates: Array.from(selectedDates),
+    });
   };
 
   return (
