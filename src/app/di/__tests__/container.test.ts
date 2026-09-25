@@ -1,5 +1,5 @@
 import { createTestContainer } from '@/app/di';
-import { InMemoryDiscoverRepository } from '@/data/repositories';
+import { InMemoryAuthRepository, InMemoryDiscoverRepository } from '@/data/repositories';
 import { AppError, failure, type DiscoverRepository } from '@/domain/repositories';
 
 /**
@@ -68,6 +68,25 @@ describe('container', () => {
     expect(container.services.logger).toBeDefined();
     expect(container.services.analytics).toBeDefined();
     expect(container.services.connectivity).toBeDefined();
+  });
+
+  it('can start already signed in, so screens can be built before auth is configured', async () => {
+    // Default: signed out, so the gate is exercised the way a real member meets it.
+    const gated = new InMemoryAuthRepository();
+    const gatedSession = await gated.getSession();
+    expect(gatedSession.ok).toBe(true);
+    if (gatedSession.ok) expect(gatedSession.value).toBeNull();
+
+    // env.devSkipAuth: the repository reports a session from the first frame.
+    // Nothing in the navigator or the gate changes — they believe the
+    // repository, which is the whole reason it is an interface.
+    const bypassed = new InMemoryAuthRepository({ startSignedIn: true });
+    let observed: string | undefined;
+    const stop = bypassed.observeAuthState((state) => {
+      observed = state.status;
+    });
+    stop();
+    expect(observed).toBe('signedIn');
   });
 
   it('only shows verified members in Discover', async () => {

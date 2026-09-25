@@ -4,7 +4,7 @@ import {
   type Person,
   type VerificationStatus,
 } from '@/domain/entities';
-import type { Database, ProfileRow } from '@/infrastructure/supabase';
+import type { ProfileRow, ProfileUpdate } from '@/infrastructure/supabase/rows';
 
 /**
  * Converts a `profiles` row into a `Person`.
@@ -29,6 +29,7 @@ const toVerification = (value: string): VerificationStatus =>
 
 export function toPerson(row: ProfileRow): Person {
   return {
+    // Also the auth user id — profiles are keyed by it. See ProfileRow.
     id: row.id,
     name: row.name,
     // The column is nullable; the entity says "absent", not "null".
@@ -44,7 +45,7 @@ export function toPerson(row: ProfileRow): Person {
 }
 
 /** The other direction, for writes. Only the columns a member may change. */
-type ProfileUpdateRow = Database['public']['Tables']['profiles']['Update'];
+type ProfileUpdateRow = ProfileUpdate;
 
 export function toProfileUpdateRow(update: {
   name?: string;

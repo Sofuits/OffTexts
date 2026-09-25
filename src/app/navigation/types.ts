@@ -28,6 +28,13 @@ export type AvailabilityFlowParamList = {
 export type RootStackParamList = {
   /** The tab navigator, as a single route on the stack. */
   RootTabs: NavigatorScreenParams<BottomTabParamList> | undefined;
+  /**
+   * Shown when signed out. It is on the same stack rather than in a separate
+   * navigator so that signing in or out swaps the screens with the stack's own
+   * transition, and so a deep link that requires auth can be held and replayed
+   * later without remounting the tree.
+   */
+  SignIn: undefined;
   EditProfile: undefined;
   PersonProfile: { personId: PersonId; personName: string };
   MeetDetails: { meetId: MeetId };

@@ -1,5 +1,5 @@
 import type { Review } from '@/domain/entities';
-import type { ReviewRow } from '@/infrastructure/supabase';
+import type { ReviewRow } from '@/infrastructure/supabase/rows';
 
 export type ReviewRowWithAuthor = ReviewRow & {
   /** Joined from `profiles`. */

@@ -12,9 +12,13 @@
     "@supabase/supabase-js": "^2.116.0",
     "@tanstack/react-query": "^5.103.1",
     "expo": "~57.0.24",
+    "expo-asset": "^57.0.18",
+    "expo-build-properties": "^57.0.21",
     "expo-constants": "~57.0.19",
+    "expo-linking": "~57.0.10",
     "expo-secure-store": "~57.0.4",
     "expo-status-bar": "~57.0.1",
+    "expo-web-browser": "~57.0.3",
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
@@ -49,10 +53,11 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "verify": "npm run typecheck && npm run lint && npm run format:check && npm test",
-    "doctor": "npx expo-doctor"
+    "doctor": "npx expo-doctor",
+    "types:generate": "node scripts/generate-types.mjs --local > src/infrastructure/supabase/database.types.ts && prettier --write src/infrastructure/supabase/database.types.ts"
   },
   "private": true,
-  "description": "Offtexts mobile app — React Native (Expo) boilerplate: navigation, theme system and tooling.",
+  "description": "Offtexts mobile app \u2014 React Native (Expo) boilerplate: navigation, theme system and tooling.",
   "engines": {
     "node": ">=20.19.4"
   }

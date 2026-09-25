@@ -7,7 +7,8 @@ import {
   type ReviewRepository,
 } from '@/domain/repositories';
 import { toReview, type ReviewRowWithAuthor } from '@/data/mappers';
-import { classifySupabaseError, type TypedSupabaseClient } from '@/infrastructure/supabase';
+import { classifySupabaseError } from '@/infrastructure/supabase/supabaseErrors';
+import type { TypedSupabaseClient } from '@/infrastructure/supabase/supabaseClient';
 
 /**
  * Reviews on Supabase.

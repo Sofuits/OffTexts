@@ -7,7 +7,8 @@ import {
   type Result,
 } from '@/domain/repositories';
 import { toPerson } from '@/data/mappers';
-import { classifySupabaseError, type TypedSupabaseClient } from '@/infrastructure/supabase';
+import { classifySupabaseError } from '@/infrastructure/supabase/supabaseErrors';
+import type { TypedSupabaseClient } from '@/infrastructure/supabase/supabaseClient';
 
 /**
  * Discover suggestions on Supabase.
@@ -37,7 +38,7 @@ export class SupabaseDiscoverRepository implements DiscoverRepository {
         .from('profiles')
         .select('*')
         .eq('verification', 'verified')
-        .neq('user_id', userId)
+        .neq('id', userId)
         .order('created_at', { ascending: false })
         // One extra row: if it comes back, there is another page.
         .limit(limit + 1);

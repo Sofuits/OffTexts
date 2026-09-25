@@ -3,6 +3,10 @@ import type { Result } from './Result';
 
 export type Credentials = { email: string; password: string };
 
+/** Identity providers the app supports. Only Google today. */
+export const OAUTH_PROVIDERS = ['google'] as const;
+export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
+
 /**
  * Authentication, expressed without naming a provider.
  *
@@ -22,12 +26,39 @@ export interface AuthRepository {
    */
   observeAuthState(listener: (state: AuthState) => void): () => void;
 
+  /**
+   * Opens the provider's consent screen and completes the exchange.
+   *
+   * Resolves with a session on success. A member who dismisses the browser is
+   * NOT an error — it is a `cancelled` result, because showing "sign-in failed"
+   * to someone who deliberately backed out is wrong.
+   */
+  signInWithOAuth(provider: OAuthProvider): Promise<Result<Session | null>>;
+
+  /**
+   * Kept although the UI only offers Google.
+   *
+   * App Store review requires a demo account the reviewer can sign in with, and
+   * handing Apple a working Google account is awkward and a security problem.
+   * An email/password path that exists but is not advertised solves that, and
+   * costs nothing since Supabase supports both at once.
+   */
   signInWithPassword(credentials: Credentials): Promise<Result<Session>>;
 
   signUpWithPassword(credentials: Credentials): Promise<Result<Session | null>>;
 
   /** Emails a one-time link. Resolves when the mail is sent, not when it is clicked. */
   sendMagicLink(email: string): Promise<Result<void>>;
+
+  /**
+   * Emails a password reset link.
+   *
+   * Succeeds whether or not an account exists at that address. That is not an
+   * oversight to be tidied up later: reporting "no such account" would turn
+   * this into a way to find out who is a member, which for a dating app is a
+   * disclosure in itself.
+   */
+  sendPasswordReset(email: string): Promise<Result<void>>;
 
   signOut(): Promise<Result<void>>;
 }

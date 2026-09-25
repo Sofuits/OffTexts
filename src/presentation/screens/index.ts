@@ -1,3 +1,4 @@
+export { SignInScreen, SplashScreen } from './auth';
 export { DiscoverScreen } from './discover/DiscoverScreen';
 export { MeetDetailsScreen } from './meets/MeetDetailsScreen';
 export { RatingsReviewsScreen } from './meets/RatingsReviewsScreen';
