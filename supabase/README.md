@@ -13,6 +13,7 @@ migrations/0007_meetings_and_payments.sql       meets extended; Razorpay orders,
 migrations/0008_safety_notifications_audit.sql  reports, notifications, push tokens, the audit log
 migrations/0009_rls_and_storage.sql             RLS and grants for all of the above, two more buckets
 migrations/0010_api_v1.sql                      the published contract — see docs/api/v1.md
+migrations/0011_three_candidates_per_day.sql    generate_candidates() defaults to three a day, not five
 
 tests/_harness.sql       fakes the auth and storage schemas Supabase provides
 tests/assertions.sql     structural rules: RLS, grants, search_path, card data, indexes
@@ -127,8 +128,13 @@ Supabase repositories instead of the in-memory ones. Nothing else changes.
 
 A fresh project has nobody for Today to show. `scripts/seed-demo.mjs` creates
 eight verified members in the dev account's city, two per purpose, each with a
-photo in Storage, and puts four of them in the dev account's set for today (two
-have already liked it, so a match can be made):
+photo in Storage, and puts three of them in the dev account's set for today —
+a different purpose left out each day, so all four come round within four days,
+and always someone who has already liked the account, so a match can be made.
+`--all-purposes` serves one of each purpose instead. It also creates five partner
+cafés in Pune with realistic hours (two closed one day a week), so a match can
+be booked. They are fictional on purpose: every name ends "(demo)" and every
+address says it is not real:
 
 ```bash
 SUPABASE_SERVICE_ROLE_KEY=… node scripts/seed-demo.mjs --member you@example.com           # dry run
