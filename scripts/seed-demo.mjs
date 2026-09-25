@@ -6,9 +6,12 @@
  * generated a candidate set. This creates eight verified members in the dev
  * account's city — two for each purpose, so dating, life partner, networking
  * and co-founder can all be walked — each with a photo uploaded to Storage,
- * and puts four of them (one per purpose) in the dev account's set for today.
- * Two of those four have already liked the dev account, so liking them back
- * makes a match and the Matches and booking flows can be walked too.
+ * and puts three of them in the dev account's set for today: three a day, as
+ * the product promises. Each day leaves out a different purpose, so all four
+ * come round within four days; `--all-purposes` serves one of each instead,
+ * for walking every purpose in one sitting. Some of the day's people have
+ * already liked the dev account, so liking them back makes a match and the
+ * Matches and booking flows can be walked too.
  *
  * It also creates five partner cafés in Pune, because a match with nowhere to
  * book dead-ends. They are invented — every name ends "(demo)" and every
@@ -40,8 +43,9 @@
  * Options:
  *   --member <email>   the dev account to seed for (default: EXPO_PUBLIC_DEMO_EMAIL)
  *   --date YYYY-MM-DD  the day to build a set for (default: today, local time —
- *                      the same local date the app asks for). Odd days get the
- *                      first four members, even days the other four.
+ *                      the same local date the app asks for). Which three are
+ *                      served depends on the date; see candidatesFor().
+ *   --all-purposes     serve four — one per purpose — instead of the day's three.
  *
  * Safe to run again, including after a run that failed part-way: a member who
  * already exists is not created again (and is reported as such), and every
@@ -88,7 +92,7 @@ const ID_HIGH = `${PREFIX}-ffff-ffff-ffff-ffffffffffff`;
  * a co-founder should be happy reading any of it.
  */
 export const PEOPLE = [
-  // First four: odd dates.
+  // The first member for each purpose.
   {
     name: 'Meera Kulkarni',
     gender: 'woman',
@@ -129,7 +133,7 @@ export const PEOPLE = [
     interests: ['Startups', 'Investing', 'Cycling'],
     likesYou: false,
   },
-  // Second four: even dates.
+  // The second member for each purpose.
   {
     name: 'Ishaan Patil',
     gender: 'man',
@@ -171,6 +175,36 @@ export const PEOPLE = [
     likesYou: true,
   },
 ].map((person, index) => ({ ...person, n: index + 1, id: seedId('member', index + 1) }));
+
+/* ----------------------------------------------------------- the day's set --- */
+
+const PURPOSES = ['dating', 'life_partner', 'networking', 'co_founder'];
+
+/**
+ * Who is in the dev account's set on a date.
+ *
+ * Three, as the product promises: each date leaves out one purpose, in
+ * rotation, so every purpose is served within any four consecutive days. Each
+ * purpose has two members and the date alternates between them, so all eight
+ * appear within those four days too. With `allPurposes`, one of each — four —
+ * for walking every purpose in one sitting.
+ *
+ * Either way at least one of the day's people has already liked the dev
+ * account (`likesYou`): each of the two alternating groups has likers under
+ * two different purposes, and a day leaves out only one.
+ *
+ * A member's purpose here is their first intent.
+ */
+export function candidatesFor(forDate, { allPurposes = false } = {}) {
+  const [year, month, day] = forDate.split('-').map(Number);
+  const dayNumber = Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
+  const pick = dayNumber % 2;
+  const skipped = allPurposes ? null : PURPOSES[dayNumber % PURPOSES.length];
+
+  return PURPOSES.filter((purpose) => purpose !== skipped).map(
+    (purpose) => PEOPLE.filter((person) => person.intents[0] === purpose)[pick],
+  );
+}
 
 /* ---------------------------------------------------------------- cafés --- */
 
@@ -330,7 +364,10 @@ export class SeedError extends Error {}
  * Seeds for one account and one date. Returns who was created and who was
  * already there, so a re-run after a partial failure says what it found.
  */
-export async function seed(supabase, { memberEmail, forDate, apply, log = console.log }) {
+export async function seed(
+  supabase,
+  { memberEmail, forDate, apply, allPurposes = false, log = console.log },
+) {
   const member = await findMember(supabase, memberEmail);
   if (member.id.startsWith(PREFIX)) {
     throw new SeedError('That account is a seeded one. Pick the dev account.');
@@ -344,8 +381,7 @@ export async function seed(supabase, { memberEmail, forDate, apply, log = consol
   check(error, 'reading the dev account profile');
   const city = profile.city;
 
-  const day = Number(forDate.slice(8, 10));
-  const group = day % 2 === 1 ? PEOPLE.slice(0, 4) : PEOPLE.slice(4);
+  const group = candidatesFor(forDate, { allPurposes });
   const dateDigits = forDate.replaceAll('-', '');
   const setId = seedId('set', dateDigits);
   const names = (people) => people.map((p) => p.name).join(', ');
@@ -414,6 +450,11 @@ export async function seed(supabase, { memberEmail, forDate, apply, log = consol
     rule_version: RULE_VERSION,
   });
   check(upsertSetError, 'writing the candidate set');
+
+  // Replace, not add: the set is ours, and a re-run that serves a different
+  // group (another mode, or a changed list) must not leave the old ones in it.
+  const { error: clearError } = await supabase.from('candidates').delete().eq('set_id', setId);
+  check(clearError, 'clearing the candidate set');
 
   const { error: candidatesError } = await supabase.from('candidates').upsert(
     group.map((person, index) => ({
@@ -797,7 +838,12 @@ async function main() {
     console.log(`Removing everything with the ${PREFIX}- prefix.`);
     await remove(supabase);
   } else {
-    await seed(supabase, { memberEmail, forDate, apply: mode === 'apply' });
+    await seed(supabase, {
+      memberEmail,
+      forDate,
+      apply: mode === 'apply',
+      allPurposes: flag('--all-purposes'),
+    });
   }
 }
 

@@ -13,6 +13,7 @@ import { describe, it } from 'node:test';
 
 import {
   CAFES,
+  candidatesFor,
   makePassword,
   PASSWORD_CLASSES,
   PEOPLE,
@@ -55,7 +56,7 @@ describe('seed', () => {
     assert.deepEqual(result.existing, []);
     assert.equal(db.users.size, PEOPLE.length + 1);
     assert.equal(db.files.size, PEOPLE.length);
-    assert.equal(db.table('candidates').length, 4);
+    assert.equal(db.table('candidates').length, 3);
     assert.ok(
       db.table('profiles').every((row) => row.id === DEV.id || row.verification === 'verified'),
     );
@@ -122,6 +123,57 @@ describe('seed', () => {
 
     await assert.rejects(seed(db.client, apply()), (error) => error instanceof SeedError);
     assert.equal(seededUserCount(db), 0);
+  });
+});
+
+describe("the day's set", () => {
+  const days = ['2026-09-25', '2026-09-26', '2026-09-27', '2026-09-28'];
+  const purposeOf = (person) => person.intents[0];
+
+  it('is three people, three purposes, every day', () => {
+    for (const day of days) {
+      const group = candidatesFor(day);
+      assert.equal(group.length, 3, day);
+      assert.equal(new Set(group.map(purposeOf)).size, 3, day);
+    }
+  });
+
+  it('serves every purpose and every member within four days', () => {
+    const served = days.flatMap((day) => candidatesFor(day));
+    assert.equal(new Set(served.map(purposeOf)).size, 4);
+    assert.equal(new Set(served.map((person) => person.id)).size, PEOPLE.length);
+  });
+
+  it('always includes somebody who has already liked the dev account', () => {
+    for (let offset = 0; offset < 28; offset += 1) {
+      const day = new Date(Date.UTC(2026, 8, 25 + offset)).toISOString().slice(0, 10);
+      assert.ok(
+        candidatesFor(day).some((person) => person.likesYou),
+        day,
+      );
+    }
+  });
+
+  it('serves one of each purpose with --all-purposes', () => {
+    const group = candidatesFor('2026-09-25', { allPurposes: true });
+    assert.equal(group.length, 4);
+    assert.equal(new Set(group.map(purposeOf)).size, 4);
+  });
+
+  it('replaces the set on a re-run rather than adding to it', async () => {
+    const db = fakeSupabase();
+    await seed(db.client, { ...apply(), allPurposes: true });
+    assert.equal(db.table('candidates').length, 4);
+
+    await seed(db.client, apply());
+
+    const subjects = db.table('candidates').map((row) => row.subject_id);
+    assert.deepEqual(
+      subjects.sort(),
+      candidatesFor('2026-09-25')
+        .map((person) => person.id)
+        .sort(),
+    );
   });
 });
 
