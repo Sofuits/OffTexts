@@ -17,7 +17,8 @@ export type VenueId = string;
 /**
  * One opening interval.
  *
- * `weekday` follows Postgres and JavaScript both: 0 is Sunday. A café may have
+ * `weekday` follows JavaScript's `Date.getDay()`: 0 is Sunday. The API sends
+ * ISO numbering (7 is Sunday); `toVenue` converts. A café may have
  * several intervals on one day — a lunch closure is two rows, not one row with
  * a hole in it — so anything reading these must handle more than one per day.
  */

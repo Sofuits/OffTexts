@@ -128,7 +128,10 @@ Supabase repositories instead of the in-memory ones. Nothing else changes.
 A fresh project has nobody for Today to show. `scripts/seed-demo.mjs` creates
 eight verified members in the dev account's city, two per purpose, each with a
 photo in Storage, and puts four of them in the dev account's set for today (two
-have already liked it, so a match can be made):
+have already liked it, so a match can be made). It also creates five partner
+cafés in Pune with realistic hours (two closed one day a week), so a match can
+be booked. They are fictional on purpose: every name ends "(demo)" and every
+address says it is not real:
 
 ```bash
 SUPABASE_SERVICE_ROLE_KEY=… node scripts/seed-demo.mjs --member you@example.com           # dry run

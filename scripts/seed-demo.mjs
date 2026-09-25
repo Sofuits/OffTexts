@@ -10,10 +10,17 @@
  * Two of those four have already liked the dev account, so liking them back
  * makes a match and the Matches and booking flows can be walked too.
  *
+ * It also creates five partner cafés in Pune, because a match with nowhere to
+ * book dead-ends. They are invented — every name ends "(demo)" and every
+ * address says it is not real — because a real café's name in the app claims a
+ * partnership that business never agreed to, and a tester could turn up at a
+ * real address expecting a table. Their hours differ enough that each café
+ * offers a different list of times, and two are closed one day a week.
+ *
  * EVERYTHING IT CREATES CARRIES ONE MARK: THE ID PREFIX `5eed0000-`.
  * Seeded users are created with a chosen id, so their profiles, photo rows,
- * candidate sets, candidates and decisions all start with it, and so does
- * every Storage path (`profile-photos/5eed0000-…/`). Rows created as side
+ * candidate sets, candidates, decisions, cafés and café hours all start with
+ * it, and so does every Storage path (`profile-photos/5eed0000-…/`). Rows created as side
  * effects are reachable through it too: matches and meets cascade from the
  * seeded profiles, and the audit rows for "verified" carry the profile id in
  * `audit_log.entity_id`. The whole database side is removed by the single
@@ -61,7 +68,15 @@ const RULE_VERSION = 'demo-seed';
 const EMAIL_DOMAIN = 'seed.offtexts.invalid';
 
 /** Ids are the prefix, a kind, and a number: readable in the table editor. */
-const KIND = { member: '0001', photo: '0002', set: '0003', candidate: '0004', decision: '0005' };
+const KIND = {
+  member: '0001',
+  photo: '0002',
+  set: '0003',
+  candidate: '0004',
+  decision: '0005',
+  cafe: '0006',
+  hours: '0007',
+};
 const seedId = (kind, n) => `${PREFIX}-${KIND[kind]}-4000-8000-${String(n).padStart(12, '0')}`;
 
 const ID_LOW = `${PREFIX}-0000-0000-0000-000000000000`;
@@ -157,6 +172,124 @@ export const PEOPLE = [
   },
 ].map((person, index) => ({ ...person, n: index + 1, id: seedId('member', index + 1) }));
 
+/* ---------------------------------------------------------------- cafés --- */
+
+/** Every seeded café is here; the members' city has to match for them to show. */
+export const CAFE_CITY = 'Pune';
+
+const MON = 1;
+const TUE = 2;
+const WED = 3;
+const THU = 4;
+const FRI = 5;
+const SAT = 6;
+const SUN = 7;
+const WEEKDAYS = [MON, TUE, WED, THU, FRI];
+
+/** `[days, opens, closes]` → one cafe_hours row per day. ISO weekdays, 7 = Sunday. */
+const open = (days, opens, closes) => days.map((weekday) => ({ weekday, opens, closes }));
+
+/**
+ * Five invented cafés. Real neighbourhoods, because a member picks a part of
+ * town first; invented everything else. The hours are chosen to exercise the
+ * booking screen: a half-hour opening (the first start rounds up), a lunch
+ * closure (two intervals in a day), a breakfast café, a late one, and two
+ * closed days — Monday at The Quiet Cup, Sunday at Leaf & Ledger — so the
+ * greyed-out day and its caption appear.
+ *
+ * Coordinates are the neighbourhood to two decimals, about a kilometre: an
+ * active café must have them, and they should not point at anybody's door.
+ * The app never shows them. The phone numbers are not dialable (a 0 straight
+ * after +91).
+ */
+export const CAFES = [
+  {
+    name: 'Fern & Filter (demo)',
+    slug: 'demo-fern-and-filter',
+    area: 'Baner',
+    latitude: 18.56,
+    longitude: 73.79,
+    hours: [...open(WEEKDAYS, '08:00', '21:00'), ...open([SAT, SUN], '09:00', '22:00')],
+  },
+  {
+    name: 'The Quiet Cup (demo)',
+    slug: 'demo-the-quiet-cup',
+    area: 'Koregaon Park',
+    latitude: 18.54,
+    longitude: 73.89,
+    // Closed Mondays. Opens on the half hour, so the first bookable start is 11.
+    hours: open([TUE, WED, THU, FRI, SAT, SUN], '10:30', '19:30'),
+  },
+  {
+    name: 'Two Chairs Coffee Room (demo)',
+    slug: 'demo-two-chairs-coffee-room',
+    area: 'Aundh',
+    latitude: 18.56,
+    longitude: 73.81,
+    // Shut for the afternoon on weekdays and Saturdays; Sunday mornings only.
+    hours: [
+      ...open([MON, TUE, WED, THU, FRI, SAT], '08:00', '12:00'),
+      ...open([MON, TUE, WED, THU, FRI, SAT], '16:00', '22:00'),
+      ...open([SUN], '09:00', '14:00'),
+    ],
+  },
+  {
+    name: 'Leaf & Ledger (demo)',
+    slug: 'demo-leaf-and-ledger',
+    area: 'Viman Nagar',
+    latitude: 18.57,
+    longitude: 73.91,
+    // A breakfast-and-lunch place. Closed Sundays.
+    hours: [
+      ...open([MON, TUE, WED, THU], '07:30', '15:00'),
+      ...open([FRI], '07:30', '18:00'),
+      ...open([SAT], '09:00', '13:00'),
+    ],
+  },
+  {
+    name: 'Slow Pour House (demo)',
+    slug: 'demo-slow-pour-house',
+    area: 'Kalyani Nagar',
+    latitude: 18.55,
+    longitude: 73.9,
+    // Afternoons and evenings; late on Friday and Saturday.
+    hours: [
+      ...open([MON, TUE, WED, THU], '12:00', '22:00'),
+      ...open([FRI, SAT], '12:00', '23:59'),
+      ...open([SUN], '13:00', '21:00'),
+    ],
+  },
+].map((cafe, index) => ({
+  ...cafe,
+  n: index + 1,
+  id: seedId('cafe', index + 1),
+}));
+
+/**
+ * The start times the booking screen will offer, per ISO weekday — the same
+ * rule as `startTimesOn` in src/domain/entities/Venue.ts, for a 60-minute
+ * meet. Printed in the dry run, so the differences between cafés are visible
+ * before anything is written.
+ */
+export function startsByDay(cafe, durationMinutes = 60) {
+  const minutes = (clock) => {
+    const [h, m] = clock.split(':').map(Number);
+    return h * 60 + m;
+  };
+  const byDay = {};
+  for (let weekday = 1; weekday <= 7; weekday += 1) {
+    const starts = new Set();
+    for (const interval of cafe.hours.filter((h) => h.weekday === weekday)) {
+      const last = minutes(interval.closes) - durationMinutes;
+      for (let at = Math.ceil(minutes(interval.opens) / 60) * 60; at <= last; at += 60) {
+        starts.add(at / 60);
+      }
+    }
+    byDay[weekday] = [...starts].sort((a, b) => a - b);
+  }
+  return byDay;
+}
+
 /* ------------------------------------------------------------ passwords --- */
 
 /**
@@ -221,6 +354,23 @@ export async function seed(supabase, { memberEmail, forDate, apply, log = consol
   log(`Members:  ${PEOPLE.length}, ids ${PREFIX}-${KIND.member}-…, verified, in ${city}`);
   log(`Today:    ${forDate}: ${group.map((p) => `${p.name} (${p.intents.join('+')})`).join(', ')}`);
   log(`Liked by: ${names(group.filter((p) => p.likesYou))}`);
+  if (city !== CAFE_CITY) {
+    log(
+      `Warning:  the cafés are in ${CAFE_CITY}, and the booking screen only lists cafés in the member's city (${city}).`,
+    );
+  }
+  log(`Cafés:    ${CAFES.length} in ${CAFE_CITY}, start times per day (Mon…Sun):`);
+  const DAY = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  for (const cafe of CAFES) {
+    const byDay = startsByDay(cafe);
+    const days = Object.entries(byDay).map(([weekday, starts]) =>
+      starts.length === 0
+        ? `${DAY[weekday]} closed`
+        : `${DAY[weekday]} ${starts[0]}–${starts.at(-1)}${starts.length !== starts.at(-1) - starts[0] + 1 ? '*' : ''}`,
+    );
+    log(`  ${cafe.name.padEnd(30)} ${days.join(', ')}`);
+  }
+  log('  (* a gap in the day)');
 
   // A set that was not made here belongs to the real matching job. Mixing demo
   // people into it would make those rows impossible to tell apart later.
@@ -250,6 +400,11 @@ export async function seed(supabase, { memberEmail, forDate, apply, log = consol
     await upsertPhoto(supabase, person);
     (outcome === 'created' ? created : existing).push(person);
     log(`  ${outcome === 'created' ? '✓ created' : '· already there'}  ${person.name}`);
+  }
+
+  for (const cafe of CAFES) {
+    await upsertCafe(supabase, cafe);
+    log(`  ✓ café     ${cafe.name}`);
   }
 
   const { error: upsertSetError } = await supabase.from('candidate_sets').upsert({
@@ -381,6 +536,43 @@ async function upsertPhoto(supabase, person) {
   check(error, `recording the photo for ${person.name}`);
 }
 
+/**
+ * A bookable café and its hours. The hours are replaced rather than upserted,
+ * so a change to the list above (a day closed, a window moved) does not leave
+ * the old row behind.
+ */
+async function upsertCafe(supabase, cafe) {
+  const { error } = await supabase.from('cafes').upsert({
+    id: cafe.id,
+    name: cafe.name,
+    slug: cafe.slug,
+    status: 'active',
+    address_line: `Demo venue, ${cafe.area} — not a real address`,
+    area: cafe.area,
+    city: CAFE_CITY,
+    latitude: cafe.latitude,
+    longitude: cafe.longitude,
+    phone: `+91 00000 0000${cafe.n}`,
+    concurrent_meet_capacity: 2,
+    notes: 'Demo seed (scripts/seed-demo.mjs). Fictional: not a real business or address.',
+  });
+  check(error, `writing ${cafe.name}`);
+
+  const { error: clearError } = await supabase.from('cafe_hours').delete().eq('cafe_id', cafe.id);
+  check(clearError, `clearing the hours of ${cafe.name}`);
+
+  const { error: hoursError } = await supabase.from('cafe_hours').insert(
+    cafe.hours.map((interval, index) => ({
+      id: seedId('hours', cafe.n * 100 + index + 1),
+      cafe_id: cafe.id,
+      weekday: interval.weekday,
+      opens_at: interval.opens,
+      closes_at: interval.closes,
+    })),
+  );
+  check(hoursError, `writing the hours of ${cafe.name}`);
+}
+
 /* --------------------------------------------------------------- remove --- */
 
 /**
@@ -427,6 +619,25 @@ export async function remove(supabase, { log = console.log } = {}) {
     else check(error, `deleting ${id}`);
   }
 
+  // Cafés after members: deleting the members has already removed every meet
+  // they were in. A meet between two real accounts at a seeded café is still
+  // there, and meets.cafe_id is ON DELETE RESTRICT, so those go explicitly —
+  // a booking at a café that is about to stop existing is not one to keep.
+  const { count: meets, error: meetsError } = await supabase
+    .from('meets')
+    .delete({ count: 'exact' })
+    .gte('cafe_id', ID_LOW)
+    .lte('cafe_id', ID_HIGH);
+  check(meetsError, 'deleting meets at seeded cafés');
+
+  // Hours cascade from the café.
+  const { count: cafes, error: cafesError } = await supabase
+    .from('cafes')
+    .delete({ count: 'exact' })
+    .gte('id', ID_LOW)
+    .lte('id', ID_HIGH);
+  check(cafesError, 'deleting cafés');
+
   // Last, because deleting a profile could in principle audit something.
   const { count: audit, error: auditError } = await supabase
     .from('audit_log')
@@ -436,13 +647,22 @@ export async function remove(supabase, { log = console.log } = {}) {
 
   log(
     `Removed ${members} members (${absent} were not there), ${files} files, ` +
-      `${sets ?? 0} candidate sets, ${audit ?? 0} audit rows.`,
+      `${sets ?? 0} candidate sets, ${cafes ?? 0} cafés, ${meets ?? 0} other meets at them, ` +
+      `${audit ?? 0} audit rows.`,
   );
 
   const left = await leftovers(supabase);
   if (left.length > 0) throw new SeedError(`Still present after removal: ${left.join('; ')}.`);
-  log('Checked: nothing with the prefix is left in Auth, profiles, sets, audit or Storage.');
-  return { members, absent, files, sets: sets ?? 0, audit: audit ?? 0 };
+  log('Checked: nothing with the prefix is left in Auth, profiles, sets, cafés, audit or Storage.');
+  return {
+    members,
+    absent,
+    files,
+    sets: sets ?? 0,
+    cafes: cafes ?? 0,
+    meets: meets ?? 0,
+    audit: audit ?? 0,
+  };
 }
 
 /** Anything with the prefix still present, described. Empty when clean. */
@@ -462,6 +682,10 @@ async function leftovers(supabase) {
   // Profiles cascade from auth.users; counting them checks the cascade ran.
   await count('profiles', (q) => q.gte('id', ID_LOW).lte('id', ID_HIGH));
   await count('candidate_sets', (q) => q.gte('id', ID_LOW).lte('id', ID_HIGH));
+  await count('cafes', (q) => q.gte('id', ID_LOW).lte('id', ID_HIGH));
+  // Cascade from the café; counted to check the cascade ran.
+  await count('cafe_hours', (q) => q.gte('cafe_id', ID_LOW).lte('cafe_id', ID_HIGH));
+  await count('meets', (q) => q.gte('cafe_id', ID_LOW).lte('cafe_id', ID_HIGH));
   await count('audit_log', (q) => q.like('entity_id', `${PREFIX}-%`));
 
   for (const folder of await seededFolders(supabase)) {

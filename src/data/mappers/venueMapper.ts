@@ -16,6 +16,13 @@ import type { VenueRow } from '@/infrastructure/supabase/rows';
  * practice, but the only honest way to read it is to check. `toHours` drops
  * anything that does not have the three fields rather than letting an
  * `undefined` weekday reach `startTimesOn` and quietly produce no slots.
+ *
+ * Third, the weekday numbering changes here. The database and the API contract
+ * use ISO-8601, 1 = Monday … 7 = Sunday (docs/api/v1.md, cafe_hours); the app
+ * uses `Date.getDay()`, 0 = Sunday … 6 = Saturday. Monday to Saturday happen
+ * to be the same numbers, which is how this went unnoticed: before the
+ * conversion, Sunday arrived as 7, was dropped as out of range, and every café
+ * showed as closed on Sundays whatever its hours.
  */
 
 function toHours(value: unknown): OpeningHours[] {
@@ -31,10 +38,12 @@ function toHours(value: unknown): OpeningHours[] {
     const opensAt = record.opens_at;
     const closesAt = record.closes_at;
 
-    if (typeof weekday !== 'number' || weekday < 0 || weekday > 6) continue;
+    if (typeof weekday !== 'number' || !Number.isInteger(weekday)) continue;
+    if (weekday < 1 || weekday > 7) continue;
     if (typeof opensAt !== 'string' || typeof closesAt !== 'string') continue;
 
-    hours.push({ weekday, opensAt, closesAt });
+    // ISO 7 (Sunday) is JavaScript's 0; 1-6 are the same in both.
+    hours.push({ weekday: weekday % 7, opensAt, closesAt });
   }
 
   return hours;

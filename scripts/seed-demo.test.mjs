@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  CAFES,
   makePassword,
   PASSWORD_CLASSES,
   PEOPLE,
@@ -124,6 +125,44 @@ describe('seed', () => {
   });
 });
 
+describe('cafés', () => {
+  it('seeds bookable, obviously fictional cafés with their hours', async () => {
+    const db = fakeSupabase();
+
+    await seed(db.client, apply());
+
+    const cafes = db.table('cafes');
+    assert.equal(cafes.length, CAFES.length);
+    for (const cafe of cafes) {
+      assert.equal(cafe.status, 'active');
+      assert.equal(cafe.city, 'Pune');
+      assert.match(cafe.name, /\(demo\)$/);
+      assert.match(cafe.address_line, /not a real address/);
+      assert.ok(cafe.id.startsWith(PREFIX));
+    }
+    const hours = db.table('cafe_hours');
+    assert.equal(hours.length, CAFES.flatMap((cafe) => cafe.hours).length);
+    assert.ok(hours.every((row) => row.weekday >= 1 && row.weekday <= 7)); // ISO, as the table says
+  });
+
+  it('has at least one café closed on a day of the week', () => {
+    const closed = CAFES.filter(
+      (cafe) => new Set(cafe.hours.map((interval) => interval.weekday)).size < 7,
+    );
+    assert.ok(closed.length >= 1);
+  });
+
+  it('does not duplicate hours on a second run', async () => {
+    const db = fakeSupabase();
+    await seed(db.client, apply());
+    const before = db.table('cafe_hours').length;
+
+    await seed(db.client, apply());
+
+    assert.equal(db.table('cafe_hours').length, before);
+  });
+});
+
 describe('remove', () => {
   it('cleans up a half-finished run: some members present, others never created', async () => {
     const db = fakeSupabase({ failCreateFor: 'Kavya Iyer' });
@@ -150,6 +189,32 @@ describe('remove', () => {
     assert.equal(db.table('candidates').length, 0);
     assert.equal(db.table('decisions').length, 0);
     assert.equal(db.table('photos').length, 0);
+  });
+
+  it('removes cafés even when real accounts booked a meet at one', async () => {
+    const db = fakeSupabase();
+    await seed(db.client, apply());
+    const otherReal = { id: 'cccccccc-0000-4000-8000-000000000001', email: 'tester@offtexts.test' };
+    db.addUser(otherReal);
+    const seededCafe = CAFES[0].id;
+    db.table('meets').push(
+      // With a seeded member: goes with the member.
+      { id: 'm1', requester_id: DEV.id, recipient_id: PEOPLE[0].id, cafe_id: seededCafe },
+      // Two real accounts at a seeded café: RESTRICT would block the café.
+      { id: 'm2', requester_id: DEV.id, recipient_id: otherReal.id, cafe_id: seededCafe },
+      // Two real accounts at a real café: none of the seed's business.
+      { id: 'm3', requester_id: DEV.id, recipient_id: otherReal.id, cafe_id: 'real-cafe' },
+    );
+
+    const result = await remove(db.client, { log: quiet });
+
+    assert.equal(result.cafes, CAFES.length);
+    assert.equal(result.meets, 1);
+    assert.deepEqual(
+      db.table('meets').map((meet) => meet.id),
+      ['m3'],
+    );
+    assert.equal(db.table('cafe_hours').length, 0);
   });
 
   it('also removes a seeded member this version of the list does not know', async () => {
@@ -193,7 +258,11 @@ function seededUserCount(db) {
 }
 
 function assertOnlyDevLeft(db) {
-  assert.deepEqual([...db.users.keys()], [DEV.id]);
+  assert.deepEqual(
+    [...db.users.keys()].filter((id) => id.startsWith(PREFIX)),
+    [],
+  );
+  assert.ok(db.users.has(DEV.id));
   assert.equal(db.files.size, 0);
   for (const [name, rows] of Object.entries(db.snapshot().tables)) {
     const marked = rows.filter((row) => JSON.stringify(row).includes(PREFIX));
@@ -219,6 +288,9 @@ function fakeSupabase(options = {}) {
     candidates: [],
     decisions: [],
     audit_log: [],
+    cafes: [],
+    cafe_hours: [],
+    meets: [],
   };
   const files = new Map();
   const table = (name) => tables[name];
@@ -285,6 +357,9 @@ function fakeSupabase(options = {}) {
         tables.decisions = tables.decisions.filter(
           (row) => row.actor_id !== id && row.subject_id !== id,
         );
+        tables.meets = tables.meets.filter(
+          (row) => row.requester_id !== id && row.recipient_id !== id,
+        );
         return { data: null, error: null };
       },
       async listUsers({ page, perPage }) {
@@ -310,6 +385,10 @@ function fakeSupabase(options = {}) {
       },
       upsert(rows) {
         op = { kind: 'upsert', rows: Array.isArray(rows) ? rows : [rows] };
+        return builder;
+      },
+      insert(rows) {
+        op = { kind: 'insert', rows: Array.isArray(rows) ? rows : [rows] };
         return builder;
       },
       delete() {
@@ -358,6 +437,22 @@ function fakeSupabase(options = {}) {
         }
         return { data: null, error: null };
       }
+      if (op.kind === 'insert') {
+        for (const incoming of op.rows) {
+          // cafe_hours_no_duplicate, and the primary key.
+          const clash = rows.some(
+            (row) =>
+              row.id === incoming.id ||
+              (name === 'cafe_hours' &&
+                row.cafe_id === incoming.cafe_id &&
+                row.weekday === incoming.weekday &&
+                row.opens_at === incoming.opens_at),
+          );
+          if (clash) return { data: null, error: { code: '23505', message: 'duplicate key' } };
+          rows.push({ ...incoming });
+        }
+        return { data: null, error: null };
+      }
       if (op.kind === 'update') {
         const targets = rows.filter(match);
         if (
@@ -388,7 +483,14 @@ function fakeSupabase(options = {}) {
         const kept = rows.filter((row) => !match(row));
         const count = rows.length - kept.length;
         const removedIds = new Set(rows.filter(match).map((row) => row.id));
+        // meets.cafe_id is ON DELETE RESTRICT.
+        if (name === 'cafes' && tables.meets.some((meet) => removedIds.has(meet.cafe_id))) {
+          return { data: null, error: { code: '23503', message: 'still referenced from meets' } };
+        }
         tables[name] = kept;
+        if (name === 'cafes') {
+          tables.cafe_hours = tables.cafe_hours.filter((row) => !removedIds.has(row.cafe_id));
+        }
         if (name === 'candidate_sets') {
           tables.candidates = tables.candidates.filter((row) => !removedIds.has(row.set_id));
         }
