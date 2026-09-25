@@ -21,11 +21,17 @@ export { QueryBoundary, type QueryBoundaryProps } from './common/QueryBoundary';
 export { SectionHeader, type SectionHeaderProps } from './common/SectionHeader';
 export { Spacer, type SpacerProps } from './common/Spacer';
 export { InterestPicker, type InterestPickerProps } from './inputs/InterestPicker';
+export { MonthCalendar, type MonthCalendarProps } from './inputs/MonthCalendar';
 export { TextField, type TextFieldProps } from './inputs/TextField';
 export { ScreenContainer, type ScreenContainerProps } from './layouts/ScreenContainer';
 export { ScreenHeader, type ScreenHeaderProps } from './layouts/ScreenHeader';
 export { Chip, ChipGroup, type ChipGroupProps, type ChipProps } from './onboarding/Chip';
-export { ChoiceRow, type ChoiceRowPosition, type ChoiceRowProps } from './onboarding/ChoiceRow';
+export {
+  ChoiceRow,
+  SelectionControl,
+  type ChoiceRowPosition,
+  type ChoiceRowProps,
+} from './onboarding/ChoiceRow';
 export { CircleButton, type CircleButtonProps } from './onboarding/CircleButton';
 export { DateOfBirthField, type DateOfBirthFieldProps } from './onboarding/DateOfBirthField';
 export { IconTile, type IconTileProps } from './onboarding/IconTile';

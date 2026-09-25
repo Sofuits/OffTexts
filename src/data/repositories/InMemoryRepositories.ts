@@ -7,9 +7,11 @@ import {
   type CandidateId,
   type CandidateSet,
   type DecisionKind,
+  type DayKey,
   type DecisionOutcome,
   type Match,
   type MatchId,
+  type OtherMemberDates,
   type Meet,
   type Person,
   type PersonId,
@@ -32,6 +34,7 @@ import {
   type MatchingRepository,
   type MeetingRequest,
   type MeetRepository,
+  type DateSharingRepository,
   type NewReview,
   type OAuthProvider,
   type PhotoRepository,
@@ -49,6 +52,7 @@ import {
   SEED_SESSION,
   SEED_VENUES,
 } from '@/shared/constants/seedData';
+import { fromDateKey, toDateKey } from '@/shared/utils/calendar';
 
 /**
  * Repositories backed by seed data held in memory.
@@ -559,5 +563,43 @@ export class InMemoryPreferencesRepository implements PreferencesRepository {
     // would hide a whole class of bug until the real backend was wired in.
     this.preferences = { ...this.preferences, ...update };
     return success({ ...this.preferences });
+  }
+}
+
+/* ======================================================== date sharing ===== */
+
+/**
+ * A pretend second member, for the date-sharing screens. PLACEHOLDER.
+ *
+ * There is no backend for sharing dates yet (see `DateSharingRepository`), so
+ * this invents the other member's dates from the ones you marked: every other
+ * one of yours, which guarantees at least one day you are both free whatever
+ * you picked, plus the day after your first and your last, so their column has
+ * days of their own and yours has something to tick. It used to be two fixed
+ * dates in October 2026, and picking anything else meant the flow could never
+ * continue.
+ *
+ * Deterministic, so a test can say what it will answer. `isPlaceholder` is
+ * always true, and the screens say so.
+ */
+export class InMemoryDateSharingRepository implements DateSharingRepository {
+  constructor(private readonly name = 'Alex') {}
+
+  async theirDates(mine: DayKey[]): Promise<Result<OtherMemberDates>> {
+    await delay();
+
+    const sorted = [...new Set(mine)].sort();
+    const dayAfter = (key: DayKey): DayKey => {
+      const date = fromDateKey(key);
+      date.setDate(date.getDate() + 1);
+      return toDateKey(date);
+    };
+
+    const theirs = new Set(sorted.filter((_, index) => index % 2 === 0));
+    for (const edge of [sorted[0], sorted[sorted.length - 1]]) {
+      if (edge !== undefined) theirs.add(dayAfter(edge));
+    }
+
+    return success({ name: this.name, dates: [...theirs].sort(), isPlaceholder: true });
   }
 }

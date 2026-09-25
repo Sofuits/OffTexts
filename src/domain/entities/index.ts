@@ -5,4 +5,5 @@ export * from './Photo';
 export * from './Preferences';
 export * from './Review';
 export * from './Session';
+export * from './SharedDates';
 export * from './Venue';

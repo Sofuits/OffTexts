@@ -1,5 +1,6 @@
 export * from './AdminRepository';
 export * from './AuthRepository';
+export * from './DateSharingRepository';
 export * from './DiscoverRepository';
 export * from './MatchingRepository';
 export * from './MeetRepository';

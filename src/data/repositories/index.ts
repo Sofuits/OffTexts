@@ -1,5 +1,6 @@
 export {
   InMemoryAuthRepository,
+  InMemoryDateSharingRepository,
   InMemoryDiscoverRepository,
   InMemoryMatchingRepository,
   InMemoryMeetRepository,

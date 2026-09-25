@@ -48,6 +48,18 @@ export type RootStackParamList = {
    * goes when they want to do something other than the main loop.
    */
   Browse: undefined;
+
+  /*
+   * Choosing a day together — a preview. The other member's dates are a
+   * placeholder until the scheduling schema exists; see
+   * DateSharingRepository. Dates are `YYYY-MM-DD` calendar days.
+   */
+  AvailabilityStart: undefined;
+  AvailabilitySelectDates: undefined;
+  AvailabilitySharedDates: { myDates: string[] };
+  AvailabilityChooseDate: { commonDates: string[] };
+  AvailabilityDateSelected: { selectedDate: string; commonDates: string[] };
+  AvailabilityTimes: { selectedDate: string };
 };
 
 export type BottomTabParamList = {

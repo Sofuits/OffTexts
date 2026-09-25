@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 
 import {
   AppText,
+  Button,
   EmptyState,
   MatchListItem,
   MeetListItem,
@@ -15,6 +16,7 @@ import {
 import type { Match, Meet } from '@/domain/entities';
 import { useMatches, useScheduledMeets } from '@/presentation/hooks';
 import type { BottomTabScreenPropsFor } from '@/app/navigation/types';
+import { env } from '@/shared/config';
 
 type Props = BottomTabScreenPropsFor<'ScheduledMeets'>;
 
@@ -71,6 +73,26 @@ export function ScheduledMeetsScreen({ navigation }: Props): React.JSX.Element {
         showLogo
       />
       <Spacer size={24} />
+
+      {/* The date planner is a preview: the other person's dates are invented
+          on the phone until the scheduling schema exists. So it is offered in
+          development and staging builds only, never to a real member. */}
+      {!env.isProduction ? (
+        <>
+          <Button
+            label="Plan dates (preview)"
+            variant="secondary"
+            fullWidth
+            onPress={() => navigation.navigate('AvailabilityStart')}
+            testID="button-plan-dates"
+          />
+          <Spacer size={8} />
+          <AppText variant="caption">
+            Not in production builds. The other person’s dates are placeholders.
+          </AppText>
+          <Spacer size={24} />
+        </>
+      ) : null}
 
       <SectionHeader title="Matches" subtitle="You both said yes. Nobody else can see this." />
       <Spacer size={12} />

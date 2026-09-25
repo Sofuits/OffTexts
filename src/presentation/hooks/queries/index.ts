@@ -6,6 +6,7 @@ export {
   useTodaysCandidates,
   type RecordDecisionInput,
 } from './useMatching';
+export { useTheirDates } from './useDateSharing';
 export { useCancelMeet, useMeet, useRequestMeet, useScheduledMeets } from './useMeets';
 export { useAddPhoto, useMyPhotos, useRemovePhoto, useSetPhotoOrder } from './usePhotos';
 export { useMyPreferences, useUpdateMyPreferences } from './usePreferences';

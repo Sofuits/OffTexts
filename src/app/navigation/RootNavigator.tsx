@@ -10,6 +10,12 @@ import { useTheme } from '@/presentation/hooks/useTheme';
 import { AuthedArea } from '@/app/navigation/AuthedArea';
 import type { RootStackParamList } from '@/app/navigation/types';
 import {
+  AvailabilityChooseDateScreen,
+  AvailabilityDateSelectedScreen,
+  AvailabilitySelectDatesScreen,
+  AvailabilitySharedDatesScreen,
+  AvailabilityStartScreen,
+  AvailabilityTimesScreen,
   DiscoverScreen,
   EditProfileScreen,
   MeetDetailsScreen,
@@ -120,6 +126,40 @@ export function RootNavigator(): React.JSX.Element {
           name="Browse"
           component={DiscoverScreen}
           options={{ title: 'Everyone else' }}
+        />
+
+        {/* Choosing a day together — a preview; see DateSharingRepository.
+            Every route the flow can reach is registered here, including the
+            one where it stops, so nothing navigates into nothing. */}
+        <Stack.Screen
+          name="AvailabilityStart"
+          component={AvailabilityStartScreen}
+          options={{ title: 'Plan a meet' }}
+        />
+        <Stack.Screen
+          name="AvailabilitySelectDates"
+          component={AvailabilitySelectDatesScreen}
+          options={{ title: 'Your dates' }}
+        />
+        <Stack.Screen
+          name="AvailabilitySharedDates"
+          component={AvailabilitySharedDatesScreen}
+          options={{ title: 'Shared dates' }}
+        />
+        <Stack.Screen
+          name="AvailabilityChooseDate"
+          component={AvailabilityChooseDateScreen}
+          options={{ title: 'Choose a day' }}
+        />
+        <Stack.Screen
+          name="AvailabilityDateSelected"
+          component={AvailabilityDateSelectedScreen}
+          options={{ title: 'Day chosen' }}
+        />
+        <Stack.Screen
+          name="AvailabilityTimes"
+          component={AvailabilityTimesScreen}
+          options={{ title: 'Times' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

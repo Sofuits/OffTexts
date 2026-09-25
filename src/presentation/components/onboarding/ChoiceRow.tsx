@@ -110,7 +110,7 @@ export function ChoiceRow({
         style,
       ]}
     >
-      <Control mode={mode} selected={selected} />
+      <SelectionControl mode={mode} selected={selected} />
 
       {icon ? (
         <Ionicons
@@ -139,11 +139,14 @@ const CONTROL = 22;
  * selected state can be an inverted fill — forest with white inside — like
  * every other selection in the app.
  *
+ * Exported for the few places that need the same checkbox outside a row — the
+ * shared-dates table — so there is one drawing of it, not two.
+ *
  * The checkbox radius is deliberately small (6, not the `sm` token). At 22dp,
  * `sm` would round the square into a circle and erase the single/multiple
  * difference the shapes exist to show.
  */
-function Control({
+export function SelectionControl({
   mode,
   selected,
 }: {

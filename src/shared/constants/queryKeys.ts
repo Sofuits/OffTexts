@@ -37,6 +37,11 @@ export const queryKeys = {
     all: ['preferences'] as const,
     mine: () => [...queryKeys.preferences.all, 'mine'] as const,
   },
+  dateSharing: {
+    all: ['dateSharing'] as const,
+    /** Keyed by my dates: the placeholder answers from them. */
+    theirs: (mine: readonly string[]) => [...queryKeys.dateSharing.all, 'theirs', ...mine] as const,
+  },
   meets: {
     all: ['meets'] as const,
     scheduled: () => [...queryKeys.meets.all, 'scheduled'] as const,

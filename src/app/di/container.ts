@@ -1,5 +1,6 @@
 import {
   InMemoryAuthRepository,
+  InMemoryDateSharingRepository,
   InMemoryDiscoverRepository,
   InMemoryMatchingRepository,
   InMemoryMeetRepository,
@@ -21,6 +22,7 @@ import {
 import { MeetLocalDataSource, ProfileLocalDataSource } from '@/data/datasources/local';
 import type {
   AuthRepository,
+  DateSharingRepository,
   DiscoverRepository,
   MatchingRepository,
   MeetRepository,
@@ -98,6 +100,8 @@ export type Container = {
     preferences: PreferencesRepository;
     reviews: ReviewRepository;
     venues: VenueRepository;
+    /** Placeholder in every build until the scheduling schema exists. */
+    dateSharing: DateSharingRepository;
   };
   useCases: {
     signIn: SignIn;
@@ -159,6 +163,10 @@ function buildSupabaseRepositories(
     preferences: new SupabasePreferencesRepository(client),
     reviews: new SupabaseReviewRepository(client),
     venues: new SupabaseVenueRepository(client),
+    // In memory even here. There is no schema to share dates through yet, so
+    // there is no Supabase implementation to wire; this one says it is a
+    // placeholder and the screens show that. See DateSharingRepository.
+    dateSharing: new InMemoryDateSharingRepository(),
   };
 }
 
@@ -184,6 +192,7 @@ function buildInMemoryRepositories(startSignedIn = false): Container['repositori
     preferences: new InMemoryPreferencesRepository(),
     reviews: new InMemoryReviewRepository(),
     venues,
+    dateSharing: new InMemoryDateSharingRepository(),
   };
 }
 
