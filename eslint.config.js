@@ -16,6 +16,20 @@ const prettierConfig = require('eslint-config-prettier/flat');
 /** Message shown when a layer reaches somewhere it must not. */
 const layerViolation = (from, to, why) => `${from} must not import from ${to}. ${why}`;
 
+/**
+ * The @expo/vector-icons package root re-exports every icon set, so importing
+ * from it makes Metro bundle every set's font — about 4MB of TTFs for the one
+ * set we use. `@expo/vector-icons/*` stays allowed.
+ *
+ * Flat config replaces a rule's options rather than merging them, so every
+ * block below that sets no-restricted-imports must list this path itself.
+ */
+const iconSetRoot = {
+  name: '@expo/vector-icons',
+  message:
+    "Import the icon set from its own entry point, e.g. `import Ionicons from '@expo/vector-icons/Ionicons'`. The package root bundles every icon font.",
+};
+
 module.exports = defineConfig([
   expoConfig,
   prettierConfig,
@@ -61,6 +75,7 @@ module.exports = defineConfig([
               message:
                 'Only src/infrastructure/supabase may import the Supabase SDK. Everything else goes through a repository interface.',
             },
+            iconSetRoot,
           ],
           patterns: [
             {
@@ -73,6 +88,15 @@ module.exports = defineConfig([
     },
   },
 
+  // src/infrastructure/supabase is exempt from the block above so it can use
+  // the SDK, but not from the icon rule.
+  {
+    files: ['src/infrastructure/supabase/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', { paths: [iconSetRoot] }],
+    },
+  },
+
   // The domain is the innermost layer. It depends on nothing — not on the
   // framework, not on the database, not on the screen. That is what lets the
   // business rules be tested with no React, no network and no Supabase.
@@ -82,6 +106,7 @@ module.exports = defineConfig([
       'no-restricted-imports': [
         'error',
         {
+          paths: [iconSetRoot],
           patterns: [
             {
               group: ['@/data/*', '@/infrastructure/*', '@/presentation/*', '@/app/*'],
@@ -113,6 +138,7 @@ module.exports = defineConfig([
       'no-restricted-imports': [
         'error',
         {
+          paths: [iconSetRoot],
           patterns: [
             {
               group: ['@/presentation/*', '@/app/*'],
@@ -145,6 +171,7 @@ module.exports = defineConfig([
               message:
                 'Import the sibling file directly (e.g. @/presentation/components/common/AppText). Importing the barrel from inside it creates a require cycle.',
             },
+            iconSetRoot,
           ],
         },
       ],
@@ -164,6 +191,7 @@ module.exports = defineConfig([
               name: '@supabase/supabase-js',
               message: 'Screens never touch the SDK. Use a hook, which uses a repository.',
             },
+            iconSetRoot,
           ],
           patterns: [
             {

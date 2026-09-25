@@ -43,10 +43,12 @@ React Native cannot measure an image it has not downloaded yet.
 ## Icons
 
 Prefer `@expo/vector-icons`, already a dependency. It covers Ionicons, Material
-Icons and several more, and costs nothing extra at build time:
+Icons and several more. Import each icon set from its own entry point, never
+from the package root — the root import makes Metro bundle every set's font
+(about 4MB of TTFs) even when only one is used:
 
 ```tsx
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 <Ionicons name="calendar-outline" size={24} color={theme.colors.primary} />;
 ```
