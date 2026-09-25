@@ -10,6 +10,8 @@ import { useTheme } from '@/presentation/hooks/useTheme';
 import { BottomTabs } from '@/app/navigation/BottomTabs';
 import type { RootStackParamList } from '@/app/navigation/types';
 import {
+  AvailabilitySelectDatesScreen,
+  AvailabilityStartScreen,
   EditProfileScreen,
   MeetDetailsScreen,
   PersonProfileScreen,
@@ -69,7 +71,7 @@ export function RootNavigator(): React.JSX.Element {
           contentStyle: { backgroundColor: theme.colors.background },
         }}
       >
-        {/*
+{/*
           Conditional groups, not navigate() calls.
 
           React Navigation unmounts the branch that is no longer rendered, so
@@ -84,6 +86,17 @@ export function RootNavigator(): React.JSX.Element {
           <Stack.Screen name="SignIn" component={SignInScreen} options={{ headerShown: false }} />
         )}
 
+        <Stack.Screen
+          name="AvailabilityStart"
+          component={AvailabilityStartScreen}
+          options={{ headerShown: false }}
+        />
+
+<Stack.Screen
+  name="AvailabilitySelectDates"
+  component={AvailabilitySelectDatesScreen}
+  options={{ headerShown: false }}
+/>
         <Stack.Screen
           name="EditProfile"
           component={EditProfileScreen}
