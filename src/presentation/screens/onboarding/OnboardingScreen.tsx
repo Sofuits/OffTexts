@@ -186,7 +186,7 @@ function DoneScreen({
           is mutual, you pick a café and we book the table.
         </AppText>
         <Spacer size={8} />
-        <AppText variant="caption" color="textDisabled" align="center">
+        <AppText variant="caption" color="textSecondary" align="center">
           Your profile goes to a moderator before anyone else sees it. That usually takes a few
           hours.
         </AppText>

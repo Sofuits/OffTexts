@@ -233,7 +233,7 @@ export function TodayScreen({ navigation }: Props): React.JSX.Element {
           <Spacer size={12} />
           <AppText
             variant="caption"
-            color={failure ? 'danger' : 'textDisabled'}
+            color={failure ? 'danger' : 'textSecondary'}
             align="center"
             testID={failure ? 'today-error' : undefined}
           >

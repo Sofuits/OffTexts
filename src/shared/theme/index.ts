@@ -1,6 +1,6 @@
 import { colors } from './colors';
 import { shadows } from './shadows';
-import { hitSlop, minTouchTarget, radii, spacing } from './spacing';
+import { hitSlop, minTouchTarget, radii, sizes, spacing } from './spacing';
 import { fontFamilies, fontSizes, fontWeights, lineHeights, typography } from './typography';
 
 export * from './colors';
@@ -19,6 +19,7 @@ export const theme = {
   colors,
   spacing,
   radii,
+  sizes,
   typography,
   shadows,
   fontSizes,

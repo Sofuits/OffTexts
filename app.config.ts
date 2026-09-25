@@ -14,9 +14,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: 'offtexts',
   version: '1.0.0',
   orientation: 'portrait',
-  // The palette is dark, so ask the OS for dark chrome. `automatic` would let a
-  // phone in light mode render system surfaces pale against a near-black app.
-  userInterfaceStyle: 'dark',
+  // The palette is light, so ask the OS for light chrome. `automatic` would let
+  // a phone in dark mode render system surfaces dark against a cream app.
+  userInterfaceStyle: 'light',
   // The OAuth redirect target. Google sends the member back to
   // offtexts://auth/callback, and expo-linking builds that URL from this value,
   // so the two cannot drift apart. Changing it means updating the redirect URL
@@ -25,7 +25,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: './assets/icon.png',
   // Matches theme.colors.background, so there is no flash of a different colour
   // between the splash screen and the first frame.
-  backgroundColor: '#0B1716',
+  backgroundColor: '#FCF6EA',
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.offtexts.app',
@@ -47,6 +47,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     tsconfigPaths: true,
   },
   plugins: [
+    'expo-font',
+    [
+      // The native launch screen. Cream, so the first frame the OS draws is the
+      // colour the app opens on; the logo sits on it as a deliberate dark tile.
+      'expo-splash-screen',
+      {
+        backgroundColor: '#FCF6EA',
+        image: './assets/icon.png',
+        imageWidth: 120,
+      },
+    ],
     [
       'expo-build-properties',
       {

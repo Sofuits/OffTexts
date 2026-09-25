@@ -12,7 +12,7 @@ export type CircleButtonProps = {
   disabled?: boolean;
   loading?: boolean;
   size?: number;
-  /** `primary` fills with brass; `muted` is the disabled-looking inset fill. */
+  /** `primary` fills with forest; `muted` is a white button with a ring, for the quieter of a pair. */
   tone?: 'primary' | 'muted' | 'danger' | 'success';
   style?: ViewStyle;
   testID?: string;
@@ -45,15 +45,24 @@ export function CircleButton({
   const theme = useTheme();
   const isDisabled = disabled || loading;
 
-  const fills = {
-    primary: theme.colors.primary,
-    muted: theme.colors.inset,
-    danger: theme.colors.danger,
-    success: theme.colors.success,
+  // Each tone owns its foreground. Reusing `textOnPrimary` for every fill is
+  // what once drew a white glyph on the white `muted` button.
+  const tones = {
+    primary: { fill: theme.colors.primary, glyph: theme.colors.textOnPrimary, ring: undefined },
+    muted: {
+      fill: theme.colors.card,
+      glyph: theme.colors.textPrimary,
+      ring: theme.colors.borderStrong,
+    },
+    danger: { fill: theme.colors.danger, glyph: theme.colors.textOnPrimary, ring: undefined },
+    success: { fill: theme.colors.success, glyph: theme.colors.textOnPrimary, ring: undefined },
   } as const;
 
-  const background = isDisabled ? theme.colors.inset : fills[tone];
-  const foreground = isDisabled ? theme.colors.textDisabled : theme.colors.textOnPrimary;
+  // Disabled is a flat `muted` fill with no ring: it has to read as "not yet",
+  // not as a quieter version of the same button.
+  const { fill, glyph, ring } = isDisabled
+    ? { fill: theme.colors.muted, glyph: theme.colors.textDisabled, ring: undefined }
+    : tones[tone];
 
   return (
     <Pressable
@@ -69,17 +78,17 @@ export function CircleButton({
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: background,
-          borderColor: isDisabled ? theme.colors.border : theme.colors.transparent,
+          backgroundColor: fill,
+          borderColor: ring ?? theme.colors.transparent,
         },
         pressed && !isDisabled && styles.pressed,
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={foreground} />
+        <ActivityIndicator color={glyph} />
       ) : (
-        <Ionicons name={icon} size={Math.round(size * 0.42)} color={foreground} />
+        <Ionicons name={icon} size={Math.round(size * 0.42)} color={glyph} />
       )}
     </Pressable>
   );
@@ -89,7 +98,7 @@ const styles = StyleSheet.create({
   circle: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1.5,
   },
   pressed: { opacity: 0.85, transform: [{ scale: 0.96 }] },
 });
