@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <!--
+      The recovery credential is in this page's URL. Nothing on it may make a
+      request anywhere except the project's own Supabase Auth API:
+        - the CSP below allows no scripts, styles, fonts, images or frames from
+          anywhere, and fetches only to Supabase, so a snippet a host injects
+          later is refused rather than trusted;
+        - no-referrer, so no request ever carries this URL in a Referer header;
+        - the favicon is inline, so the browser does not ask the server for one.
+      Everything is in this one file on purpose. Do not add analytics, pixels,
+      fonts or a config.js to it.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://dxggtnpnyxqjyarxvczh.supabase.co; img-src data:; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <link rel="icon" href="data:," />
+    <title>Reset your password · Offtexts</title>
+    <style>
+      :root {
+        --cream: #fcf6ea;
+        --paper: #ffffff;
+        --hair: #eae2d4;
+        --ink: #17201c;
+        --ink-soft: #42524a;
+        --forest: #1c4638;
+        --forest-deep: #143528;
+        --sage: #e5f1d9;
+        --sand: #fef3e1;
+        --danger: #a3342e;
+        --muted: #e2e2d8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--cream);
+        color: var(--ink);
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          'Helvetica Neue',
+          Arial,
+          sans-serif;
+        font-size: 17px;
+        line-height: 1.45;
+        -webkit-text-size-adjust: 100%;
+      }
+      main {
+        max-width: 440px;
+        margin: 0 auto;
+        padding: max(32px, env(safe-area-inset-top)) 20px max(32px, env(safe-area-inset-bottom));
+      }
+      .brand {
+        font-weight: 700;
+        letter-spacing: 0;
+        color: var(--forest);
+        font-size: 18px;
+        margin: 0 0 28px;
+      }
+      h1 {
+        font-size: 28px;
+        line-height: 1.2;
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 0 0 12px;
+      }
+      .card {
+        background: var(--paper);
+        border: 1px solid var(--hair);
+        border-radius: 20px;
+        padding: 20px;
+        margin-top: 24px;
+      }
+      .notice {
+        background: var(--sand);
+        border: 1px solid var(--hair);
+        border-radius: 16px;
+        padding: 14px 16px;
+        margin-top: 20px;
+      }
+      .notice.error {
+        border-color: var(--danger);
+      }
+      .notice.ok {
+        background: var(--sage);
+      }
+      label {
+        display: block;
+        font-weight: 500;
+        font-size: 15px;
+        margin: 0 0 8px;
+      }
+      .field {
+        margin-bottom: 18px;
+      }
+      input[type='password'],
+      input[type='text'] {
+        width: 100%;
+        height: 52px;
+        padding: 0 16px;
+        font: inherit;
+        color: var(--ink);
+        background: var(--paper);
+        border: 2px solid var(--hair);
+        border-radius: 16px;
+        outline: none;
+      }
+      input:focus {
+        border-color: var(--forest);
+        box-shadow: 0 5px 0 var(--hair);
+      }
+      .show {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 15px;
+        margin: -4px 0 16px;
+      }
+      .show input {
+        width: 20px;
+        height: 20px;
+        accent-color: var(--forest);
+      }
+      ul.rules {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 20px;
+        font-size: 15px;
+      }
+      ul.rules li {
+        padding: 3px 0 3px 28px;
+        position: relative;
+      }
+      ul.rules li::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 6px;
+        width: 16px;
+        height: 16px;
+        border-radius: 5px;
+        border: 2px solid var(--ink-soft);
+      }
+      ul.rules li.met::before {
+        background: var(--forest);
+        border-color: var(--forest);
+      }
+      ul.rules li.met::after {
+        content: '';
+        position: absolute;
+        left: 6px;
+        top: 8px;
+        width: 5px;
+        height: 9px;
+        border: solid var(--paper);
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+      }
+      button {
+        width: 100%;
+        min-height: 48px;
+        font: inherit;
+        font-weight: 600;
+        color: var(--paper);
+        background: var(--forest);
+        border: none;
+        border-radius: 16px;
+        cursor: pointer;
+      }
+      button:active {
+        background: var(--forest-deep);
+        transform: scale(0.98);
+      }
+      button:disabled {
+        background: var(--muted);
+        color: var(--ink-soft);
+        cursor: not-allowed;
+        transform: none;
+      }
+      .small {
+        font-size: 14px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      noscript p {
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="brand">offtexts</p>
+
+      <!-- Shown until the script decides; replaced in every other case. -->
+      <section id="state-checking" data-state>
+        <h1>Reset your password</h1>
+        <p>Checking your link…</p>
+        <noscript>
+          <p>This page needs JavaScript to change your password. Nothing it does leaves this page except the change itself.</p>
+        </noscript>
+      </section>
+
+      <section id="state-form" data-state hidden>
+        <h1>Choose a new password</h1>
+        <p>You will use it to sign in to Offtexts on every device.</p>
+        <div class="card">
+          <form id="form" novalidate>
+            <div class="field">
+              <label for="password">New password</label>
+              <input
+                id="password"
+                type="password"
+                autocomplete="new-password"
+                aria-describedby="rules"
+                required
+              />
+            </div>
+            <div class="field">
+              <label for="confirm">Confirm new password</label>
+              <input id="confirm" type="password" autocomplete="new-password" required />
+            </div>
+            <label class="show"><input id="show" type="checkbox" /> Show passwords</label>
+            <ul class="rules" id="rules" aria-live="polite">
+              <li data-rule="length">At least 8 characters</li>
+              <li data-rule="lower">A lowercase letter</li>
+              <li data-rule="upper">An uppercase letter</li>
+              <li data-rule="digit">A number</li>
+              <li data-rule="symbol">A symbol, such as ! ? # or %</li>
+              <li data-rule="match">Both passwords match</li>
+            </ul>
+            <button id="save" type="submit" disabled>Save password</button>
+          </form>
+          <div id="form-error" class="notice error" role="alert" hidden></div>
+        </div>
+      </section>
+
+      <section id="state-done" data-state hidden>
+        <h1>Your password is changed</h1>
+        <div class="notice ok">
+          <p><strong>Go back to the Offtexts app and sign in with your new password.</strong></p>
+          <p class="small">You can close this page.</p>
+        </div>
+      </section>
+
+      <section id="state-expired" data-state hidden>
+        <h1>This link has expired</h1>
+        <div class="notice error">
+          <p>Reset links only work for a short time, only once, and only the newest one you were sent works.</p>
+          <p>
+            <strong>To get a new one:</strong> open the Offtexts app, tap <em>Forgot password?</em> on the
+            sign-in screen, and then <em>Send the link</em>. Use the link in the newest email.
+          </p>
+        </div>
+      </section>
+
+      <section id="state-used" data-state hidden>
+        <h1>This link has already been used</h1>
+        <div class="notice ok">
+          <p>
+            Your password was changed on this device<span id="used-at"></span>.
+            <strong>Go back to the Offtexts app and sign in with your new password.</strong>
+          </p>
+        </div>
+        <p class="small" style="margin-top: 16px">
+          Didn’t change it yourself? In the app, tap <em>Forgot password?</em> and choose a new one straight
+          away.
+        </p>
+      </section>
+
+      <section id="state-wrong-device" data-state hidden>
+        <h1>Open this link on the phone that asked for it</h1>
+        <div class="notice error">
+          <p>
+            This kind of reset link can only be finished by the Offtexts app on the device that requested it.
+            Open the email there, or ask for a new link from the app.
+          </p>
+        </div>
+      </section>
+
+      <section id="state-missing" data-state hidden>
+        <h1>Open the link from your email</h1>
+        <p>
+          This page changes your password when you arrive from the reset email. To get one, open the Offtexts app,
+          tap <em>Forgot password?</em> on the sign-in screen, and then <em>Send the link</em>.
+        </p>
+      </section>
+
+      <section id="state-failed" data-state hidden>
+        <h1>That didn’t work</h1>
+        <div class="notice error">
+          <p id="failed-message">Something went wrong.</p>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        'use strict';
+
+        // The project's Supabase Auth API. The anon key is public by design — it
+        // ships inside the app — and on its own it can do nothing to an account.
+        var SUPABASE_URL = 'https://dxggtnpnyxqjyarxvczh.supabase.co';
+        var ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4Z2d0bnBueXhxanlhcnh2Y3poIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwOTQxNDIsImV4cCI6MjEwNTY3MDE0Mn0.S8jZoSHGhWyYf4DR-shlYNwT0PLaptUQGpSa40A4gnA';
+
+        // The project's Auth password policy (Dashboard → Authentication → Sign In /
+        // Providers → Email): minimum length, and lowercase, uppercase, digits and
+        // symbols all required. Same numbers as src/domain/usecases/passwordRules.ts.
+        var MIN_LENGTH = 8;
+        var MAX_BYTES = 72; // bcrypt ignores everything after 72 bytes
+        var SYMBOLS = '!@#$%^&*()_+-=[]{};\'\\:"|<>?,./`~';
+
+        // Remembers, on this device only, that a reset was finished here — which is
+        // the only way to tell "already used" from "expired": Supabase answers
+        // both with the same otp_expired code.
+        var DONE_KEY = 'offtexts.passwordResetDoneAt';
+        var DONE_REMEMBERED_MS = 24 * 60 * 60 * 1000;
+
+        var accessToken = null;
+
+        // 1. Read the link, then take it out of the address bar and history
+        //    straight away, so the credential is not left where it can be copied,
+        //    screenshotted or restored by the back button.
+        var hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+        var query = new URLSearchParams(location.search);
+        if (location.hash || location.search) {
+          history.replaceState(null, '', location.pathname);
+        }
+
+        function param(name) {
+          return hash.get(name) || query.get(name);
+        }
+
+        function show(id) {
+          var sections = document.querySelectorAll('[data-state]');
+          for (var i = 0; i < sections.length; i += 1) {
+            sections[i].hidden = sections[i].id !== id;
+          }
+          var heading = document.querySelector('#' + id + ' h1');
+          if (heading) {
+            heading.setAttribute('tabindex', '-1');
+            heading.focus();
+          }
+        }
+
+        function fail(message) {
+          document.getElementById('failed-message').textContent = message;
+          show('state-failed');
+        }
+
+        function recentlyDone() {
+          try {
+            var at = Number(localStorage.getItem(DONE_KEY));
+            return at && Date.now() - at < DONE_REMEMBERED_MS ? at : null;
+          } catch (e) {
+            return null;
+          }
+        }
+
+        function linkNoLongerWorks() {
+          var at = recentlyDone();
+          if (at) {
+            var time = new Date(at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            document.getElementById('used-at').textContent = ' at ' + time;
+            show('state-used');
+          } else {
+            show('state-expired');
+          }
+        }
+
+        function tokenExpired(token) {
+          try {
+            var part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+            var payload = JSON.parse(atob(part + '==='.slice((part.length + 3) % 4)));
+            return typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now();
+          } catch (e) {
+            return false; // let the server decide
+          }
+        }
+
+        function api(path, options) {
+          var headers = { apikey: ANON_KEY, 'Content-Type': 'application/json' };
+          if (options.token) headers.Authorization = 'Bearer ' + options.token;
+          return fetch(SUPABASE_URL + '/auth/v1' + path, {
+            method: options.method,
+            headers: headers,
+            body: options.body ? JSON.stringify(options.body) : undefined,
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer',
+            cache: 'no-store',
+          }).then(function (response) {
+            return response
+              .json()
+              .catch(function () {
+                return {};
+              })
+              .then(function (json) {
+                return { status: response.status, json: json };
+              });
+          });
+        }
+
+        function errorCode(json) {
+          return json.error_code || json.code || json.error || null;
+        }
+
+        function startForm(token) {
+          if (tokenExpired(token)) {
+            linkNoLongerWorks();
+            return;
+          }
+          accessToken = token;
+          show('state-form');
+          document.getElementById('password').focus();
+        }
+
+        // 2. Decide what kind of link this is.
+        //
+        //    - Implicit flow (what the Offtexts app uses today, and the default
+        //      email template): Supabase verified the link already and put a
+        //      session in the fragment: #access_token=…&type=recovery.
+        //    - token_hash (if the recovery email template is changed to link here
+        //      directly): the link is verified by this page, with a POST, so an
+        //      email scanner that opens links cannot use it up first.
+        //    - Either can come back as an error instead; otp_expired means expired,
+        //      already used, or replaced by a newer link — Supabase does not say
+        //      which.
+        //    - A PKCE `code` can only be exchanged by the client holding its
+        //      verifier: the app on the phone that asked. Not this page.
+        var code = errorCode({ error_code: param('error_code'), error: param('error') });
+        if (code) {
+          if (code === 'otp_expired' || code === 'access_denied') {
+            linkNoLongerWorks();
+          } else {
+            fail(
+              (param('error_description') || 'The link was refused.').replace(/\+/g, ' ') +
+                ' Ask for a new link from the Offtexts app.',
+            );
+          }
+        } else if (hash.get('access_token') && hash.get('type') === 'recovery') {
+          startForm(hash.get('access_token'));
+        } else if (query.get('token_hash') && (query.get('type') || 'recovery') === 'recovery') {
+          api('/verify', {
+            method: 'POST',
+            body: { type: 'recovery', token_hash: query.get('token_hash') },
+          })
+            .then(function (result) {
+              if (result.status === 200 && result.json.access_token) {
+                startForm(result.json.access_token);
+              } else if (result.status === 403 || errorCode(result.json) === 'otp_expired') {
+                linkNoLongerWorks();
+              } else if (result.status === 429) {
+                fail('Too many attempts. Wait a few minutes, then open the link again.');
+              } else {
+                fail('The link could not be checked. Ask for a new one from the Offtexts app.');
+              }
+            })
+            .catch(function () {
+              fail('No connection. Check your internet, then open the link from your email again.');
+            });
+        } else if (query.get('code')) {
+          show('state-wrong-device');
+        } else if (recentlyDone()) {
+          linkNoLongerWorks();
+        } else {
+          show('state-missing');
+        }
+
+        // 3. The form, checked as the member types, against the same rules the
+        //    server enforces — so the server never has to refuse, and nobody sees
+        //    Supabase's list of character sets.
+        var password = document.getElementById('password');
+        var confirm = document.getElementById('confirm');
+        var save = document.getElementById('save');
+        var formError = document.getElementById('form-error');
+
+        function bytes(text) {
+          return new TextEncoder().encode(text).length;
+        }
+
+        function has(text, test) {
+          for (var i = 0; i < text.length; i += 1) {
+            if (test(text.charAt(i))) return true;
+          }
+          return false;
+        }
+
+        function checks() {
+          var value = password.value;
+          return {
+            length: value.length >= MIN_LENGTH && bytes(value) <= MAX_BYTES,
+            lower: has(value, function (c) {
+              return c >= 'a' && c <= 'z';
+            }),
+            upper: has(value, function (c) {
+              return c >= 'A' && c <= 'Z';
+            }),
+            digit: has(value, function (c) {
+              return c >= '0' && c <= '9';
+            }),
+            symbol: has(value, function (c) {
+              return SYMBOLS.indexOf(c) >= 0;
+            }),
+            match: value.length > 0 && value === confirm.value,
+          };
+        }
+
+        function refresh() {
+          var result = checks();
+          var allMet = true;
+          var items = document.querySelectorAll('#rules li');
+          for (var i = 0; i < items.length; i += 1) {
+            var met = result[items[i].getAttribute('data-rule')];
+            items[i].classList.toggle('met', met);
+            if (!met) allMet = false;
+          }
+          var lengthRule = document.querySelector('[data-rule="length"]');
+          lengthRule.textContent =
+            bytes(password.value) > MAX_BYTES ? 'At most 72 characters' : 'At least 8 characters';
+          save.disabled = !allMet;
+          formError.hidden = true;
+        }
+
+        password.addEventListener('input', refresh);
+        confirm.addEventListener('input', refresh);
+        document.getElementById('show').addEventListener('change', function (event) {
+          var type = event.target.checked ? 'text' : 'password';
+          password.type = type;
+          confirm.type = type;
+        });
+
+        function formFail(message) {
+          formError.textContent = message;
+          formError.hidden = false;
+          save.disabled = false;
+          save.textContent = 'Save password';
+        }
+
+        document.getElementById('form').addEventListener('submit', function (event) {
+          event.preventDefault();
+          if (save.disabled || !accessToken) return;
+          save.disabled = true;
+          save.textContent = 'Saving…';
+
+          api('/user', { method: 'PUT', token: accessToken, body: { password: password.value } })
+            .then(function (result) {
+              var codeName = errorCode(result.json);
+              if (result.status === 200) {
+                try {
+                  localStorage.setItem(DONE_KEY, String(Date.now()));
+                } catch (e) {
+                  /* private mode: the page still works, it just cannot remember */
+                }
+                // The recovery session has done its job. End it, so the tokens that
+                // arrived in the URL cannot be used for anything else.
+                api('/logout?scope=local', { method: 'POST', token: accessToken }).catch(function () {});
+                accessToken = null;
+                password.value = '';
+                confirm.value = '';
+                show('state-done');
+              } else if (codeName === 'same_password') {
+                formFail('That is your current password. Choose a different one.');
+              } else if (codeName === 'weak_password') {
+                formFail('That password does not meet the rules above. Check each one is ticked.');
+              } else if (result.status === 401 || result.status === 403) {
+                accessToken = null;
+                linkNoLongerWorks();
+              } else if (result.status === 429) {
+                formFail('Too many attempts. Wait a few minutes, then try again.');
+              } else {
+                formFail('Your password could not be saved. Try again in a moment.');
+              }
+            })
+            .catch(function () {
+              formFail('No connection. Check your internet, then try again.');
+            });
+        });
+      })();
+    </script>
+  </body>
+</html>
