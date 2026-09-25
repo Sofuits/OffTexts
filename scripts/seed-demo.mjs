@@ -547,7 +547,9 @@ async function upsertCafe(supabase, cafe) {
     name: cafe.name,
     slug: cafe.slug,
     status: 'active',
-    address_line: `Demo venue, ${cafe.area} — not a real address`,
+    // No area here: the app shows "{area} · {address}", so repeating it reads
+    // "Aundh · Demo venue, Aundh".
+    address_line: 'Demo venue — not a real address',
     area: cafe.area,
     city: CAFE_CITY,
     latitude: cafe.latitude,
