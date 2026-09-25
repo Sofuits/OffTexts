@@ -10,17 +10,17 @@ import { useTheme } from '@/presentation/hooks/useTheme';
 import { BottomTabs } from '@/app/navigation/BottomTabs';
 import type { RootStackParamList } from '@/app/navigation/types';
 import {
+  AvailabilityChooseDateScreen,
+  AvailabilityDateSelectedScreen,
   AvailabilitySelectDatesScreen,
   AvailabilitySharedDatesScreen,
   AvailabilityStartScreen,
-  AvailabilityDateSelectedScreen,
   EditProfileScreen,
   MeetDetailsScreen,
   PersonProfileScreen,
   RatingsReviewsScreen,
   SignInScreen,
   SplashScreen,
-  AvailabilityChooseDateScreen,
 } from '@/presentation/screens';
 import { useAuth } from '@/app/providers/AuthProvider';
 
@@ -74,14 +74,6 @@ export function RootNavigator(): React.JSX.Element {
           contentStyle: { backgroundColor: theme.colors.background },
         }}
       >
-        {/*
-          Conditional groups, not navigate() calls.
-          React Navigation unmounts the branch that is no longer rendered, so
-          signing out cannot leave a signed-in screen underneath, and there is
-          no back gesture from the tabs to the sign-in screen. Doing this with
-          navigate() instead leaves both in the stack and is how a signed-out
-          member ends up able to swipe back into the app.
-        */}
         {isSignedIn ? (
           <Stack.Screen
             name="RootTabs"
@@ -101,16 +93,6 @@ export function RootNavigator(): React.JSX.Element {
           component={AvailabilityStartScreen}
           options={{ headerShown: false }}
         />
-<Stack.Screen
-  name="AvailabilitySelectDates"
-  component={AvailabilitySelectDatesScreen}
-  options={{ headerShown: false }}
-/>
-        <Stack.Screen
-          name="AvailabilityStart"
-          component={AvailabilityStartScreen}
-          options={{ headerShown: false }}
-        />
 
         <Stack.Screen
           name="AvailabilitySelectDates"
@@ -118,42 +100,43 @@ export function RootNavigator(): React.JSX.Element {
           options={{ headerShown: false }}
         />
 
-<Stack.Screen
-  name="AvailabilitySelectDates"
-  component={AvailabilitySelectDatesScreen}
-  options={{ headerShown: false }}
-/>
-<Stack.Screen
-  name="AvailabilitySharedDates"
-  component={AvailabilitySharedDatesScreen}
-  options={{ headerShown: false }}
-/>
-<Stack.Screen
-  name="AvailabilityChooseDate"
-  component={AvailabilityChooseDateScreen}
-  options={{ headerShown: false }}
-/>
-<Stack.Screen
-  name="AvailabilityDateSelected"
-  component={AvailabilityDateSelectedScreen}
-  options={{ headerShown: false }}
-/>
+        <Stack.Screen
+          name="AvailabilitySharedDates"
+          component={AvailabilitySharedDatesScreen}
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+          name="AvailabilityChooseDate"
+          component={AvailabilityChooseDateScreen}
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+          name="AvailabilityDateSelected"
+          component={AvailabilityDateSelectedScreen}
+          options={{ headerShown: false }}
+        />
+
         <Stack.Screen
           name="EditProfile"
           component={EditProfileScreen}
           options={{ title: 'Edit profile' }}
         />
+
         <Stack.Screen
           name="PersonProfile"
           component={PersonProfileScreen}
           // Title comes from the route params, so the header names the person.
           options={({ route }) => ({ title: route.params.personName })}
         />
+
         <Stack.Screen
           name="MeetDetails"
           component={MeetDetailsScreen}
           options={{ title: 'Meet details' }}
         />
+
         <Stack.Screen
           name="RatingsReviews"
           component={RatingsReviewsScreen}
