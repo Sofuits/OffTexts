@@ -60,13 +60,23 @@ export function MatchListItem({ match, onPress, testID }: MatchListItemProps): R
         <AppText variant="title" numberOfLines={1}>
           {match.person.age ? `${match.person.name}, ${match.person.age}` : match.person.name}
         </AppText>
+        {/* Two lines, not one joined with a dot: on one line the status — the
+            part that says whether anything needs doing — was the part that got
+            cut off ("Matched 34 minutes ago · On…"). */}
+        <AppText
+          variant="caption"
+          color="textSecondary"
+          numberOfLines={1}
+          style={{ marginTop: theme.spacing[2] }}
+        >
+          {`Matched ${formatRelative(match.matchedAt)}`}
+        </AppText>
         <AppText
           variant="caption"
           color={match.meetingCount === 0 ? 'primary' : 'textSecondary'}
           numberOfLines={1}
-          style={{ marginTop: theme.spacing[2] }}
         >
-          {`Matched ${formatRelative(match.matchedAt)} · ${status}`}
+          {status}
         </AppText>
       </View>
 

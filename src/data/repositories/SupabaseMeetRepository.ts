@@ -8,7 +8,7 @@ import {
   type Result,
 } from '@/domain/repositories';
 import type { MeetLocalDataSource } from '@/data/datasources/local';
-import { toMeet, type MeetRowWithPerson } from '@/data/mappers';
+import { toMeet } from '@/data/mappers';
 import type { Logger } from '@/infrastructure/logging';
 import type { ConnectivityMonitor } from '@/infrastructure/network';
 import { classifySupabaseError } from '@/infrastructure/supabase/supabaseErrors';
@@ -52,17 +52,19 @@ export class SupabaseMeetRepository implements MeetRepository {
     }
 
     const result = await attempt(async () => {
-      const userId = await this.requireUserId();
+      await this.requireUserId();
 
+      // The contract's view, not the table: it resolves the other member for
+      // the caller, whichever side of the booking they are on. See toMeet.
       const { data, error } = await this.client
-        .from('meets')
-        .select('*, person:profiles!meets_recipient_id_fkey(name, photo_urls)')
-        .or(`requester_id.eq.${userId},recipient_id.eq.${userId}`)
+        .schema('api_v1')
+        .from('meetings')
+        .select('*')
         .order('scheduled_for', { ascending: false });
 
       if (error) throw error;
 
-      return (data as unknown as MeetRowWithPerson[]).map((row) => toMeet(row, userId));
+      return (data ?? []).map(toMeet);
     }, classifySupabaseError);
 
     if (result.ok) {
@@ -83,12 +85,8 @@ export class SupabaseMeetRepository implements MeetRepository {
 
   async getMeetById(id: string): Promise<Result<Meet>> {
     return attempt(async () => {
-      const userId = await this.requireUserId();
-
-      const { data, error } = await this.client.from('meets').select('*').eq('id', id).single();
-      if (error) throw error;
-
-      return toMeet(data as unknown as MeetRowWithPerson, userId);
+      await this.requireUserId();
+      return this.readMeeting(id);
     }, classifySupabaseError);
   }
 
@@ -127,22 +125,34 @@ export class SupabaseMeetRepository implements MeetRepository {
 
   async cancelMeet(id: string): Promise<Result<Meet>> {
     const result = await attempt(async () => {
-      const userId = await this.requireUserId();
+      await this.requireUserId();
 
-      const { data, error } = await this.client
+      const { error } = await this.client
         .from('meets')
         .update({ status: 'cancelled' })
-        .eq('id', id)
-        .select('*')
-        .single();
-
+        .eq('id', id);
       if (error) throw error;
-      return toMeet(data as unknown as MeetRowWithPerson, userId);
+
+      // Read back through the view, so the result names the other member.
+      return this.readMeeting(id);
     }, classifySupabaseError);
 
     // The cached list now disagrees with the server. Drop it rather than patch
     // it — a stale cancelled meet showing as confirmed is worse than a refetch.
     if (result.ok) await this.cache.clear();
     return result;
+  }
+
+  /** One meeting, through the view. Throws PGRST116 (notFound) when it is not the caller's. */
+  private async readMeeting(id: string): Promise<Meet> {
+    const { data, error } = await this.client
+      .schema('api_v1')
+      .from('meetings')
+      .select('*')
+      .eq('meeting_id', id)
+      .single();
+
+    if (error) throw error;
+    return toMeet(data);
   }
 }

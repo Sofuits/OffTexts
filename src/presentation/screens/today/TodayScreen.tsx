@@ -293,7 +293,7 @@ function VerificationNotice({ status }: { status: string }): React.JSX.Element {
         <AppText variant="caption" color="textSecondary" style={{ marginTop: theme.spacing[2] }}>
           {rejected
             ? 'Something on it did not pass our checks. Edit it and it goes back into the queue.'
-            : 'You can look at today’s three now. Nobody is shown you until this is done, which usually takes a few hours.'}
+            : 'You can look at today’s three now. Other members will see you once it has been checked, which usually takes a few hours.'}
         </AppText>
       </View>
     </View>

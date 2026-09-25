@@ -156,7 +156,7 @@ export function RequestMeetScreen({ route, navigation }: Props): React.JSX.Eleme
       {venue ? (
         <>
           <Spacer size={32} />
-          <SectionHeader title="When" subtitle={`${venue.name}'s opening hours`} />
+          <SectionHeader title="When" subtitle={`Days ${venue.name} is open`} />
           <Spacer size={12} />
           <ChipGroup>
             {days.map((date, index) => {
