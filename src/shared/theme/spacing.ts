@@ -23,18 +23,45 @@ export const spacing = {
 export type Spacing = typeof spacing;
 export type SpacingToken = keyof Spacing;
 
-/** Corner radii. `full` is deliberately large so it pills any height. */
+/**
+ * Corner radii. One squircle family, 10–20dp, for nearly everything — Breeze's
+ * buttons, fields, tiles and cards measure 12–16dp, and none of them are pills.
+ * `full` is for avatars and progress segments only.
+ */
 export const radii = {
   none: 0,
-  sm: 6,
-  md: 10,
+  /** Checkboxes, small controls. */
+  sm: 10,
+  /** Chips. */
+  md: 14,
+  /** Buttons, icon tiles, fields, cards. */
   lg: 16,
-  xl: 24,
+  /** Large cards, sheets. */
+  xl: 20,
+  /** Avatars only. */
   full: 999,
 } as const;
 
 export type Radii = typeof radii;
 export type RadiusToken = keyof Radii;
+
+/**
+ * Control heights, from Breeze's screenshots measured in dp. Chips are 44
+ * rather than Breeze's 39 so every interactive element clears `minTouchTarget`.
+ */
+export const sizes = {
+  nextButton: 48,
+  iconTile: 52,
+  field: 52,
+  /** The band under a focused field. */
+  fieldFocusBand: 5,
+  chip: 44,
+  optionRow: 64,
+  cta: 48,
+  ctaXl: 56,
+} as const;
+
+export type Sizes = typeof sizes;
 
 /**
  * Minimum touch target. Below 44dp, taps start getting missed — both Apple's

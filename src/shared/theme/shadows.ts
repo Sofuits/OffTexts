@@ -13,37 +13,38 @@ import { Platform, type ViewStyle } from 'react-native';
 
 type Elevation = 'none' | 'sm' | 'md' | 'lg';
 
-// Black rather than the background green: a shadow tinted with the surface
-// colour reads as a halo on a dark theme instead of as depth.
-const shadowColor = '#000000';
+// A warm brown rather than black: on cream, a black shadow reads as grime. The
+// mockups use a very soft shadow on cards and nothing else — white on cream is
+// most of the separation, and there is no coloured offset layer.
+const shadowColor = '#5B5136';
 
 const ios: Record<Elevation, ViewStyle> = {
   none: {},
   sm: {
     shadowColor,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
   },
   md: {
     shadowColor,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
   },
   lg: {
     shadowColor,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.45,
-    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.14,
+    shadowRadius: 28,
   },
 };
 
 const android: Record<Elevation, ViewStyle> = {
   none: { elevation: 0 },
   sm: { elevation: 1 },
-  md: { elevation: 4 },
-  lg: { elevation: 10 },
+  md: { elevation: 3 },
+  lg: { elevation: 6 },
 };
 
 const pick = (level: Elevation): ViewStyle =>

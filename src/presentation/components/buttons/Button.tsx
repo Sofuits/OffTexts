@@ -45,6 +45,10 @@ export function Button({
 }: ButtonProps): React.JSX.Element {
   const theme = useTheme();
   const isDisabled = disabled || loading;
+  // Greyed out only when genuinely unavailable. A button that is loading keeps
+  // its colour and shows the spinner — it is busy, not off.
+  const looksDisabled = disabled && !loading;
+  const isFilled = variant === 'primary' || variant === 'secondary' || variant === 'danger';
 
   const { container, textColor } = useMemo(() => {
     const byVariant: Record<
@@ -115,14 +119,20 @@ export function Button({
         container,
         fullWidth && styles.fullWidth,
         pressed && !isDisabled && styles.pressed,
-        isDisabled && styles.disabled,
+        // A flat `muted` fill rather than fading the colour: a half-transparent
+        // forest button reads as a weaker version of the action, not as "not yet".
+        looksDisabled && isFilled && { backgroundColor: theme.colors.muted },
         style,
       ]}
       {...rest}
     >
       {/* The label stays mounted while loading so the button keeps its width. */}
       <View style={styles.content}>
-        <AppText variant="button" color={textColor} style={loading ? styles.hidden : undefined}>
+        <AppText
+          variant="button"
+          color={looksDisabled ? 'textDisabled' : textColor}
+          style={loading ? styles.hidden : undefined}
+        >
           {label}
         </AppText>
         {loading ? (
@@ -145,6 +155,5 @@ const styles = StyleSheet.create({
   fullWidth: { alignSelf: 'stretch', width: '100%' },
   content: { alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.85 },
-  disabled: { opacity: 0.5 },
   hidden: { opacity: 0 },
 });

@@ -55,7 +55,7 @@ export function DiscoverScreen({ navigation }: Props): React.JSX.Element {
         right={<Badge label={city ?? 'Pune'} tone="primary" />}
       />
       <Spacer size={12} />
-      <AppText variant="caption" color="textDisabled">
+      <AppText variant="caption" color="textSecondary">
         Browsing only. Liking happens in Today, where it counts for something.
       </AppText>
       <Spacer size={24} />

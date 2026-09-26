@@ -40,7 +40,7 @@ export function ProgressDots({
         accessibilityRole="progressbar"
         accessibilityValue={{ min: 0, max: safeTotal, now: done }}
       >
-        <View style={[styles.track, { backgroundColor: theme.colors.inset }]}>
+        <View style={[styles.track, { backgroundColor: theme.colors.muted }]}>
           <View
             style={[
               styles.fill,
@@ -69,7 +69,7 @@ export function ProgressDots({
           style={[
             styles.dash,
             {
-              backgroundColor: index < done ? theme.colors.primary : theme.colors.inset,
+              backgroundColor: index < done ? theme.colors.primary : theme.colors.muted,
             },
           ]}
         />

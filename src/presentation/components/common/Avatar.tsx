@@ -29,7 +29,9 @@ export function Avatar({ name, uri, size = 56, style }: AvatarProps): React.JSX.
     width: size,
     height: size,
     borderRadius: theme.radii.full,
-    backgroundColor: theme.colors.inset,
+    // `tint`, not `inset`: inputs are white now, and a white avatar vanishes on
+    // a white card — the match moment's overlapping pair lost its second face.
+    backgroundColor: theme.colors.tint,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: theme.colors.border,
   } satisfies ImageStyle & ViewStyle;

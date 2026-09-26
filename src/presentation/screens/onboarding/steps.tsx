@@ -156,7 +156,7 @@ function InterestedInBody({ draft, patch }: StepContext): React.JSX.Element {
           testID={`choice-interested-${gender}`}
         />
       ))}
-      <AppText variant="caption" color="textDisabled">
+      <AppText variant="caption" color="textSecondary">
         Pick as many as apply. You can change this later without anyone being told.
       </AppText>
     </View>
@@ -223,7 +223,7 @@ function HeadlineBody({ draft, patch }: StepContext): React.JSX.Element {
         testID="input-headline"
       />
       <Spacer size={8} />
-      <AppText variant="caption" color={remaining < 20 ? 'warning' : 'textDisabled'}>
+      <AppText variant="caption" color={remaining < 20 ? 'warning' : 'textSecondary'}>
         {`${remaining} characters left`}
       </AppText>
     </>
@@ -289,7 +289,7 @@ function PhotosBody(_props: StepContext): React.JSX.Element {
       {!photos.canPick ? (
         <>
           <Spacer size={16} />
-          <AppText variant="caption" color="textDisabled">
+          <AppText variant="caption" color="textSecondary">
             Adding photos needs the app on a phone. You can do it from your profile later.
           </AppText>
         </>
