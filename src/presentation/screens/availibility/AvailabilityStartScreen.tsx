@@ -54,10 +54,7 @@ export function AvailabilityStartScreen(): React.JSX.Element {
                 style={[
                   styles.calendarCell,
                   {
-                    backgroundColor:
-                      index === 7
-                        ? theme.colors.primary
-                        : theme.colors.background,
+                    backgroundColor: index === 7 ? theme.colors.primary : theme.colors.background,
                   },
                 ]}
               />
@@ -86,8 +83,8 @@ export function AvailabilityStartScreen(): React.JSX.Element {
             },
           ]}
         >
-          Choose the days when you’re available to meet, and we’ll find times
-          that work for both of you.
+          Choose the days when you’re available to meet, and we’ll find times that work for both of
+          you.
         </Text>
       </View>
 

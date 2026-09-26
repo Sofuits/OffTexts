@@ -14,5 +14,6 @@ export { OnboardingScreen } from './onboarding';
 export { PersonProfileScreen } from './person/PersonProfileScreen';
 export { EditProfileScreen } from './profile/EditProfileScreen';
 export { ProfileScreen } from './profile/ProfileScreen';
+export { TodayScreen } from './today/TodayScreen';
 export { AvailabilityStartScreen } from './availibility/AvailabilityStartScreen';
 export { AvailabilitySelectDatesScreen } from './availibility/AvailabilitySelectDatesScreen';
