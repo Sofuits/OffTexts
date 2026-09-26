@@ -25,13 +25,22 @@ nothing in the schema holds that today. It is a migration, not a restyle.
 in the admin portal (§5). Nothing about a venue appears anywhere in the
 member's flow.
 
-### One meaning for "confirmed"
+### One meaning for "confirmed" — in the code
 
-**Confirmed means a table is booked**, and nothing else — `meets.status =
-'confirmed'`, set when staff assign a café (§7). The members reaching the same
-day and time is **agreed**: the session's stage is `agreed`, and the meeting it
-creates is `pending` until staff book a table. No screen, stage, column or
-function in this flow says "confirmed" for anything short of a booked table.
+**In the schema and the code, confirmed means a table is booked**, and nothing
+else — `meets.status = 'confirmed'`, set when staff assign a café (§7). The
+members reaching the same day and time is **agreed**: the session's stage is
+`agreed`, and the meeting it creates is `pending` until staff book a table. No
+stage, column, constraint or function in this flow says "confirmed" for
+anything short of a booked table. That is where the ambiguity was, and where
+it is fixed.
+
+**On screen, the mockups' copy stands**: step 5 says the day "is confirmed!"
+and step 9 says "Meeting confirmed!". From the member's side it is confirmed —
+they have agreed a time with someone and it is happening — and they never see
+a café, so there is nothing for the word to mislead them about. Internal
+screen names (`DayChosen`, `Agreed`) follow the code's vocabulary; the copy
+follows the mockups.
 
 ### The table that looks like it would help, and does not
 
@@ -47,18 +56,18 @@ answers a different question, and conflating the two will break matching.
 Exactly the ten mockup steps. There is no café screen, and no screen names a
 café.
 
-| #   | Screen              | What it does                                                                                                                                                                                                                                                                                          |
-| --- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **SchedulingStart** | From a match. Explains the steps. The mockup puts a heart between the two avatars — use the café cup instead. Offtexts serves four purposes; only one is romantic.                                                                                                                                    |
-| 2   | **SelectDates**     | Month calendar, multi-select, spanning weeks or months. Chips below for what is picked.                                                                                                                                                                                                               |
-| 3   | **SharedDates**     | Two-column table, you and them. Green row = both free. Your own column stays editable.                                                                                                                                                                                                                |
-| 4   | **ChooseDay**       | Radio list of the overlap only.                                                                                                                                                                                                                                                                       |
-| 5   | **DayChosen**       | The chosen day, with a "Change" affordance. The mockup's "Friday, Oct 9 is confirmed!" becomes "…is chosen" — nothing is confirmed yet (§0).                                                                                                                                                          |
-| 6   | **SelectTimes**     | Slot list for the chosen day, multi-select, the city's timezone shown. **Only start times at which at least one partner café in the city is open for the whole meeting** (§4, `bookable_times`).                                                                                                      |
-| 7   | **SharedTimes**     | Same two-column table, for times.                                                                                                                                                                                                                                                                     |
-| 8   | **ChooseTime**      | Radio list of the overlap. **Choosing settles the day and time**: the session becomes `agreed` and the meeting is created. No café is chosen or assigned here (§4, `choose_time`).                                                                                                                    |
-| 9   | **Agreed**          | The day and time are agreed and the meeting exists. Both members and the admin are notified. The mockup's "Meeting confirmed!" must become wording that does not say confirmed — e.g. "It's agreed" — because no table is booked yet (§0). **No venue** — not a name, not "to be confirmed", nothing. |
-| 10  | **EditScheduling**  | Edit dates · edit times · cancel.                                                                                                                                                                                                                                                                     |
+| #   | Screen              | What it does                                                                                                                                                                                      |
+| --- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **SchedulingStart** | From a match. Explains the steps. The mockup puts a heart between the two avatars — use the café cup instead. Offtexts serves four purposes; only one is romantic.                                |
+| 2   | **SelectDates**     | Month calendar, multi-select, spanning weeks or months. Chips below for what is picked.                                                                                                           |
+| 3   | **SharedDates**     | Two-column table, you and them. Green row = both free. Your own column stays editable.                                                                                                            |
+| 4   | **ChooseDay**       | Radio list of the overlap only.                                                                                                                                                                   |
+| 5   | **DayChosen**       | The chosen day, with a "Change" affordance. Copy as drawn: "Friday, Oct 9 is confirmed!" (§0).                                                                                                    |
+| 6   | **SelectTimes**     | Slot list for the chosen day, multi-select, the city's timezone shown. **Only start times at which at least one partner café in the city is open for the whole meeting** (§4, `bookable_times`).  |
+| 7   | **SharedTimes**     | Same two-column table, for times.                                                                                                                                                                 |
+| 8   | **ChooseTime**      | Radio list of the overlap. **Choosing settles the day and time**: the session becomes `agreed` and the meeting is created. No café is chosen or assigned here (§4, `choose_time`).                |
+| 9   | **Agreed**          | The day and time are agreed and the meeting exists. Both members and the admin are notified. Copy as drawn: "Meeting confirmed!" (§0). **No venue** — not a name, not "to be confirmed", nothing. |
+| 10  | **EditScheduling**  | Edit dates · edit times · cancel.                                                                                                                                                                 |
 
 Steps 3 and 7 are the same component with different data. Steps 4 and 8 are
 the same component. Build two, use them twice.
@@ -621,8 +630,10 @@ names in `src/shared/constants/seedData.ts` (§5).
 - **The app never shows the café, anywhere.** Staff tell the two members where
   to go, outside the app. If staff have no channel to reach members, that is an
   operational gap to close, not a question for this spec.
-- **"Confirmed" means a table is booked.** The session stage is `agreed`; the
-  meeting is `pending` until staff book (§0).
+- **In the code, "confirmed" means a table is booked.** The session stage is
+  `agreed`; the meeting is `pending` until staff book (§0). **On screen, the
+  mockups' copy stands** — "is confirmed!" and "Meeting confirmed!" — because
+  from the member's side the meeting is happening and no café is ever shown.
 - **Timezone:** the city's, with an assertion that a city's partner cafés share
   one (§2).
 - **Capacity** is checked when staff assign a café, under a lock on the café's
