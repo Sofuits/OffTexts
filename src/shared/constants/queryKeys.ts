@@ -33,6 +33,10 @@ export const queryKeys = {
     all: ['photos'] as const,
     mine: () => [...queryKeys.photos.all, 'mine'] as const,
   },
+  profileDetails: {
+    all: ['profileDetails'] as const,
+    mine: () => [...queryKeys.profileDetails.all, 'mine'] as const,
+  },
   preferences: {
     all: ['preferences'] as const,
     mine: () => [...queryKeys.preferences.all, 'mine'] as const,

@@ -38,6 +38,20 @@ export type Photo = {
 /** The most a member may have. Mirrors the CHECK on `photos.sort_order`. */
 export const MAX_PHOTOS = 6;
 
+/** The fewest a finished profile may have. Mirrors `complete_my_onboarding()`. */
+export const MIN_PHOTOS = 2;
+
+/**
+ * Photos that count towards the minimum.
+ *
+ * Pending ones do: moderation happens after onboarding, and nobody should have
+ * to wait on a moderator to finish. Rejected ones do not — they will never be
+ * shown to anybody.
+ */
+export function usablePhotos(photos: Photo[]): Photo[] {
+  return photos.filter((photo) => photo.moderation !== 'rejected');
+}
+
 /** What other members can actually see. */
 export function approved(photos: Photo[]): Photo[] {
   return photos.filter((photo) => photo.moderation === 'approved');

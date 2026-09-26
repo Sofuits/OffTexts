@@ -12,7 +12,12 @@ import {
   Spacer,
   TextField,
 } from '@/presentation/components';
-import { MEET_INTENTS, MEET_INTENT_LABELS, type MeetIntent, type Person } from '@/domain/entities';
+import {
+  MEET_INTENT_LABELS,
+  SELECTABLE_INTENTS,
+  type MeetIntent,
+  type Person,
+} from '@/domain/entities';
 import { ONBOARDING_LIMITS } from '@/domain/usecases';
 import type { ProfileUpdate } from '@/domain/repositories';
 import { useMyProfile, useUpdateMyProfile } from '@/presentation/hooks';
@@ -287,7 +292,14 @@ function EditProfileForm({
       <Spacer size={12} />
 
       <ChipGroup>
-        {MEET_INTENTS.map((intent) => (
+        {/* Networking is no longer offered, but a member who already has it
+            still sees it so they can take it off. */}
+        {[
+          ...SELECTABLE_INTENTS,
+          ...form.intents.filter(
+            (intent) => !(SELECTABLE_INTENTS as readonly MeetIntent[]).includes(intent),
+          ),
+        ].map((intent) => (
           <Chip
             key={intent}
             label={MEET_INTENT_LABELS[intent]}

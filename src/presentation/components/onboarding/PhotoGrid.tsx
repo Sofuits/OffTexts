@@ -19,6 +19,8 @@ export type PhotoGridProps = {
   max?: number;
   onAdd: () => void;
   onRemove: (id: PhotoId) => void;
+  /** Tapping a photo. Used to open a preview with reorder controls. */
+  onPressPhoto?: (id: PhotoId) => void;
   /** True while a photo is being picked, uploaded or deleted. Blocks a second tap. */
   busy?: boolean;
   /** False on platforms with no camera roll — the tiles then explain themselves. */
@@ -47,6 +49,7 @@ export function PhotoGrid({
   max = MAX_PHOTOS,
   onAdd,
   onRemove,
+  onPressPhoto,
   busy = false,
   canPick = true,
   style,
@@ -75,13 +78,24 @@ export function PhotoGrid({
                   },
                 ]}
               >
-                <Image
-                  source={{ uri: photo.url }}
-                  style={[styles.image, rejected && styles.faded]}
-                  resizeMode="cover"
-                  accessibilityIgnoresInvertColors
+                <Pressable
+                  accessibilityRole={onPressPhoto ? 'button' : 'image'}
                   accessibilityLabel={index === 0 ? 'Your main photo' : `Photo ${index + 1}`}
-                />
+                  accessibilityHint={
+                    onPressPhoto ? 'Opens the photo to preview or move it' : undefined
+                  }
+                  disabled={!onPressPhoto || busy}
+                  onPress={() => onPressPhoto?.(photo.id)}
+                  style={styles.image}
+                  testID={`button-photo-${index}`}
+                >
+                  <Image
+                    source={{ uri: photo.url }}
+                    style={[styles.image, rejected && styles.faded]}
+                    resizeMode="cover"
+                    accessibilityIgnoresInvertColors
+                  />
+                </Pressable>
 
                 {pending || rejected ? (
                   <View style={[styles.stamp, { backgroundColor: 'rgba(11, 23, 22, 0.82)' }]}>

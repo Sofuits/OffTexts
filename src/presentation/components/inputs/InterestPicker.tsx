@@ -14,6 +14,13 @@ export type InterestPickerProps = {
   onChange: (interests: string[]) => void;
   min: number;
   max: number;
+  /** What to offer as chips. Defaults to the interests list. */
+  suggestions?: readonly string[];
+  /** Label and placeholder for the "type your own" field. */
+  customLabel?: string;
+  customPlaceholder?: string;
+  /** Prefix for test ids, so two pickers on one screen stay distinguishable. */
+  testIDPrefix?: string;
   style?: ViewStyle;
 };
 
@@ -36,6 +43,10 @@ export function InterestPicker({
   onChange,
   min,
   max,
+  suggestions = SUGGESTED_INTERESTS,
+  customLabel = 'Something else',
+  customPlaceholder = 'Kathak, Formula 1, birdwatching…',
+  testIDPrefix = 'interest',
   style,
 }: InterestPickerProps): React.JSX.Element {
   const theme = useTheme();
@@ -67,17 +78,23 @@ export function InterestPicker({
 
   // Chosen-but-not-suggested first, so an interest that was typed rather than
   // tapped stays where the member can see and remove it.
-  const typed = selected.filter((interest) => !SUGGESTED_INTERESTS.some((s) => s === interest));
+  const typed = selected.filter((interest) => !suggestions.some((s) => s === interest));
 
   return (
     <View style={style}>
-      <AppText variant="label" color={atMax ? 'primary' : 'textSecondary'} testID="interests-count">
-        {`${selected.length} of ${max} chosen · pick at least ${min}`}
+      <AppText
+        variant="label"
+        color={atMax ? 'primary' : 'textSecondary'}
+        testID={`${testIDPrefix}s-count`}
+      >
+        {min > 0
+          ? `${selected.length} of ${max} chosen · pick at least ${min}`
+          : `${selected.length} of ${max} chosen`}
       </AppText>
       <Spacer size={12} />
 
       <ChipGroup>
-        {[...typed, ...SUGGESTED_INTERESTS].map((interest) => {
+        {[...typed, ...suggestions].map((interest) => {
           const isOn = selected.includes(interest);
           return (
             <Chip
@@ -88,7 +105,7 @@ export function InterestPicker({
               // they are not choosing, which is what makes the cap legible.
               disabled={atMax && !isOn}
               onPress={() => toggle(interest)}
-              testID={`chip-interest-${interest}`}
+              testID={`chip-${testIDPrefix}-${interest}`}
             />
           );
         })}
@@ -98,26 +115,26 @@ export function InterestPicker({
       <View style={[styles.addRow, { gap: theme.spacing[12] }]}>
         <View style={styles.grow}>
           <TextField
-            label="Something else"
+            label={customLabel}
             value={custom}
             onChangeText={setCustom}
             onSubmitEditing={addCustom}
-            placeholder="Kathak, Formula 1, birdwatching…"
+            placeholder={customPlaceholder}
             autoCapitalize="sentences"
             maxLength={40}
             returnKeyType="done"
             editable={!atMax}
-            testID="input-custom-interest"
+            testID={`input-custom-${testIDPrefix}`}
           />
         </View>
         <CircleButton
           icon="add"
-          accessibilityLabel="Add this interest"
+          accessibilityLabel={`Add this ${testIDPrefix}`}
           onPress={addCustom}
           disabled={atMax || custom.trim().length === 0}
           size={48}
           style={{ marginBottom: theme.spacing[2] }}
-          testID="button-add-interest"
+          testID={`button-add-${testIDPrefix}`}
         />
       </View>
     </View>

@@ -22,6 +22,8 @@ export type OnboardingStepProps = {
   current: number;
   total: number;
   icon: React.ComponentProps<typeof IconTile>['name'];
+  /** The part of the flow this step belongs to, shown above the question. */
+  section?: string;
   /** The question, in the member's own words. Short enough to fit two lines. */
   question: string;
   subtitle?: string;
@@ -58,6 +60,7 @@ export function OnboardingStep({
   current,
   total,
   icon,
+  section,
   question,
   subtitle,
   privacy,
@@ -125,7 +128,21 @@ export function OnboardingStep({
         >
           <IconTile name={icon} />
 
-          <AppText variant="heading" style={{ marginTop: theme.spacing[20] }}>
+          {section ? (
+            <AppText
+              variant="caption"
+              color="primary"
+              style={{ marginTop: theme.spacing[20] }}
+              testID="onboarding-section"
+            >
+              {`${section.toUpperCase()} · ${current} of ${total}`}
+            </AppText>
+          ) : null}
+
+          <AppText
+            variant="heading"
+            style={{ marginTop: section ? theme.spacing[4] : theme.spacing[20] }}
+          >
             {question}
           </AppText>
 

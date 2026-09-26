@@ -4,6 +4,16 @@ import type { Logger } from '@/infrastructure/logging';
 import { STORAGE_KEYS } from '@/shared/constants/storageKeys';
 
 /**
+ * Bumped whenever `Person` gains a field the app makes a decision with, so a
+ * copy cached by an older build is discarded rather than trusted.
+ *
+ * 2: `onboardingCompletedAt` (migration 0012).
+ */
+const CACHE_VERSION = 2;
+
+type CachedProfile = { version: number; person: Person };
+
+/**
  * The last profile we successfully fetched, kept on disk.
  *
  * This is what makes the Profile tab useful on a train with no signal: the
@@ -25,9 +35,18 @@ export class ProfileLocalDataSource {
     if (!raw) return null;
 
     try {
-      return JSON.parse(raw) as Person;
+      const parsed = JSON.parse(raw) as Partial<CachedProfile>;
+      if (parsed.version !== CACHE_VERSION || !parsed.person) {
+        // Written by an older build. Its profile predates fields the app now
+        // decides things with — onboarding completion, for one — and serving
+        // it would send a finished member back through onboarding the first
+        // time they open the new build offline. Better no cache than that.
+        await this.store.removeItem(STORAGE_KEYS.cachedProfile);
+        return null;
+      }
+      return parsed.person;
     } catch (error) {
-      // Written by an older version in a shape we no longer parse. Drop it.
+      // Not JSON at all. Drop it.
       this.logger.warn('Cached profile could not be parsed; discarding.', { error });
       await this.store.removeItem(STORAGE_KEYS.cachedProfile);
       return null;
@@ -35,7 +54,8 @@ export class ProfileLocalDataSource {
   }
 
   async write(person: Person): Promise<void> {
-    await this.store.setItem(STORAGE_KEYS.cachedProfile, JSON.stringify(person));
+    const cached: CachedProfile = { version: CACHE_VERSION, person };
+    await this.store.setItem(STORAGE_KEYS.cachedProfile, JSON.stringify(cached));
   }
 
   async clear(): Promise<void> {

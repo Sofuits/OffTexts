@@ -660,6 +660,171 @@ export type Database = {
         };
         Relationships: [];
       };
+      profile_details: {
+        Row: {
+          member_id: string;
+          last_name: string | null;
+          pronouns: string | null;
+          hometown: string | null;
+          languages: string[];
+          occupation_status: Database['public']['Enums']['occupation_status'] | null;
+          education_level: Database['public']['Enums']['education_level'] | null;
+          institution: string | null;
+          degree: string | null;
+          field_of_study: string | null;
+          graduation_year: number | null;
+          study_year: number | null;
+          study_mode: Database['public']['Enums']['study_mode'] | null;
+          previous_education: string | null;
+          internship: string | null;
+          career_interests: string[];
+          skills: string[];
+          occupation: string | null;
+          job_title: string | null;
+          company: string | null;
+          industry: string | null;
+          years_experience: number | null;
+          work_location: string | null;
+          work_mode: Database['public']['Enums']['work_mode'] | null;
+          smoking: Database['public']['Enums']['smoking_habit'] | null;
+          drinking: Database['public']['Enums']['drinking_habit'] | null;
+          diet: Database['public']['Enums']['diet_preference'] | null;
+          exercise: Database['public']['Enums']['exercise_habit'] | null;
+          sleep: Database['public']['Enums']['sleep_schedule'] | null;
+          pets: Database['public']['Enums']['pet_preference'] | null;
+          prompts: Json;
+          hidden_fields: string[];
+          onboarding_step: string | null;
+          created_at: string;
+          updated_at: string;
+          relationship_goal: Database['public']['Enums']['relationship_goal'] | null;
+          children_plan: Database['public']['Enums']['children_plan'] | null;
+          partner_values: string[];
+          marriage_timeline: Database['public']['Enums']['marriage_timeline'] | null;
+          marital_status: Database['public']['Enums']['marital_status'] | null;
+          religion: Database['public']['Enums']['religion'] | null;
+          faith_importance: Database['public']['Enums']['importance_level'] | null;
+          living_arrangement: Database['public']['Enums']['living_arrangement'] | null;
+          family_involvement: Database['public']['Enums']['family_involvement'] | null;
+          open_to_relocate: Database['public']['Enums']['relocation_openness'] | null;
+          cofounder_role: Database['public']['Enums']['cofounder_role'] | null;
+          startup_stage: Database['public']['Enums']['startup_stage'] | null;
+          founder_skills: Database['public']['Enums']['founder_skill'][];
+          seeking_skills: Database['public']['Enums']['founder_skill'][];
+          founder_commitment: Database['public']['Enums']['founder_commitment'] | null;
+          startup_industries: string[];
+          funding_plan: Database['public']['Enums']['funding_plan'] | null;
+        };
+        Insert: {
+          member_id: string;
+          last_name?: string | null;
+          pronouns?: string | null;
+          hometown?: string | null;
+          languages?: string[];
+          occupation_status?: Database['public']['Enums']['occupation_status'] | null;
+          education_level?: Database['public']['Enums']['education_level'] | null;
+          institution?: string | null;
+          degree?: string | null;
+          field_of_study?: string | null;
+          graduation_year?: number | null;
+          study_year?: number | null;
+          study_mode?: Database['public']['Enums']['study_mode'] | null;
+          previous_education?: string | null;
+          internship?: string | null;
+          career_interests?: string[];
+          skills?: string[];
+          occupation?: string | null;
+          job_title?: string | null;
+          company?: string | null;
+          industry?: string | null;
+          years_experience?: number | null;
+          work_location?: string | null;
+          work_mode?: Database['public']['Enums']['work_mode'] | null;
+          smoking?: Database['public']['Enums']['smoking_habit'] | null;
+          drinking?: Database['public']['Enums']['drinking_habit'] | null;
+          diet?: Database['public']['Enums']['diet_preference'] | null;
+          exercise?: Database['public']['Enums']['exercise_habit'] | null;
+          sleep?: Database['public']['Enums']['sleep_schedule'] | null;
+          pets?: Database['public']['Enums']['pet_preference'] | null;
+          prompts?: Json;
+          hidden_fields?: string[];
+          onboarding_step?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          relationship_goal?: Database['public']['Enums']['relationship_goal'] | null;
+          children_plan?: Database['public']['Enums']['children_plan'] | null;
+          partner_values?: string[];
+          marriage_timeline?: Database['public']['Enums']['marriage_timeline'] | null;
+          marital_status?: Database['public']['Enums']['marital_status'] | null;
+          religion?: Database['public']['Enums']['religion'] | null;
+          faith_importance?: Database['public']['Enums']['importance_level'] | null;
+          living_arrangement?: Database['public']['Enums']['living_arrangement'] | null;
+          family_involvement?: Database['public']['Enums']['family_involvement'] | null;
+          open_to_relocate?: Database['public']['Enums']['relocation_openness'] | null;
+          cofounder_role?: Database['public']['Enums']['cofounder_role'] | null;
+          startup_stage?: Database['public']['Enums']['startup_stage'] | null;
+          founder_skills?: Database['public']['Enums']['founder_skill'][];
+          seeking_skills?: Database['public']['Enums']['founder_skill'][];
+          founder_commitment?: Database['public']['Enums']['founder_commitment'] | null;
+          startup_industries?: string[];
+          funding_plan?: Database['public']['Enums']['funding_plan'] | null;
+        };
+        Update: {
+          member_id?: string;
+          last_name?: string | null;
+          pronouns?: string | null;
+          hometown?: string | null;
+          languages?: string[];
+          occupation_status?: Database['public']['Enums']['occupation_status'] | null;
+          education_level?: Database['public']['Enums']['education_level'] | null;
+          institution?: string | null;
+          degree?: string | null;
+          field_of_study?: string | null;
+          graduation_year?: number | null;
+          study_year?: number | null;
+          study_mode?: Database['public']['Enums']['study_mode'] | null;
+          previous_education?: string | null;
+          internship?: string | null;
+          career_interests?: string[];
+          skills?: string[];
+          occupation?: string | null;
+          job_title?: string | null;
+          company?: string | null;
+          industry?: string | null;
+          years_experience?: number | null;
+          work_location?: string | null;
+          work_mode?: Database['public']['Enums']['work_mode'] | null;
+          smoking?: Database['public']['Enums']['smoking_habit'] | null;
+          drinking?: Database['public']['Enums']['drinking_habit'] | null;
+          diet?: Database['public']['Enums']['diet_preference'] | null;
+          exercise?: Database['public']['Enums']['exercise_habit'] | null;
+          sleep?: Database['public']['Enums']['sleep_schedule'] | null;
+          pets?: Database['public']['Enums']['pet_preference'] | null;
+          prompts?: Json;
+          hidden_fields?: string[];
+          onboarding_step?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          relationship_goal?: Database['public']['Enums']['relationship_goal'] | null;
+          children_plan?: Database['public']['Enums']['children_plan'] | null;
+          partner_values?: string[];
+          marriage_timeline?: Database['public']['Enums']['marriage_timeline'] | null;
+          marital_status?: Database['public']['Enums']['marital_status'] | null;
+          religion?: Database['public']['Enums']['religion'] | null;
+          faith_importance?: Database['public']['Enums']['importance_level'] | null;
+          living_arrangement?: Database['public']['Enums']['living_arrangement'] | null;
+          family_involvement?: Database['public']['Enums']['family_involvement'] | null;
+          open_to_relocate?: Database['public']['Enums']['relocation_openness'] | null;
+          cofounder_role?: Database['public']['Enums']['cofounder_role'] | null;
+          startup_stage?: Database['public']['Enums']['startup_stage'] | null;
+          founder_skills?: Database['public']['Enums']['founder_skill'][];
+          seeking_skills?: Database['public']['Enums']['founder_skill'][];
+          founder_commitment?: Database['public']['Enums']['founder_commitment'] | null;
+          startup_industries?: string[];
+          funding_plan?: Database['public']['Enums']['funding_plan'] | null;
+        };
+        Relationships: [];
+      };
       profiles: {
         Row: {
           id: string;
@@ -678,6 +843,7 @@ export type Database = {
           date_of_birth: string | null;
           last_active_at: string;
           is_paused: boolean;
+          onboarding_completed_at: string | null;
         };
         Insert: {
           id: string;
@@ -696,6 +862,7 @@ export type Database = {
           date_of_birth?: string | null;
           last_active_at?: string;
           is_paused?: boolean;
+          onboarding_completed_at?: string | null;
         };
         Update: {
           id?: string;
@@ -714,6 +881,7 @@ export type Database = {
           date_of_birth?: string | null;
           last_active_at?: string;
           is_paused?: boolean;
+          onboarding_completed_at?: string | null;
         };
         Relationships: [];
       };
@@ -962,12 +1130,62 @@ export type Database = {
         Args: Record<never, never>;
         Returns: number;
       };
+      valid_list_items: {
+        Args: {
+          items: string[];
+          max_length: number;
+        };
+        Returns: boolean;
+      };
+      valid_profile_prompts: {
+        Args: {
+          p: Json;
+        };
+        Returns: boolean;
+      };
     };
     Enums: {
       cafe_status: 'prospect' | 'active' | 'paused' | 'ended';
+      children_plan:
+        'want' | 'dont_want' | 'have_want_more' | 'have_dont_want_more' | 'open' | 'not_sure';
+      cofounder_role: 'have_startup' | 'want_to_join' | 'either';
       decision_kind: 'pass' | 'like';
       device_platform: 'ios' | 'android' | 'web';
+      diet_preference:
+        | 'vegetarian'
+        | 'eggetarian'
+        | 'non_vegetarian'
+        | 'vegan'
+        | 'jain'
+        | 'other'
+        | 'prefer_not_to_say';
+      drinking_habit: 'never' | 'socially' | 'regularly' | 'prefer_not_to_say';
+      education_level:
+        | 'high_school'
+        | 'diploma'
+        | 'bachelors'
+        | 'masters'
+        | 'doctorate'
+        | 'other'
+        | 'prefer_not_to_say';
+      exercise_habit: 'never' | 'sometimes' | 'regularly' | 'daily';
+      family_involvement: 'my_decision' | 'family_involved' | 'family_led';
+      founder_commitment: 'full_time_now' | 'full_time_soon' | 'part_time';
+      founder_skill:
+        | 'engineering'
+        | 'product'
+        | 'design'
+        | 'sales'
+        | 'marketing'
+        | 'operations'
+        | 'finance'
+        | 'domain_expert';
+      funding_plan: 'bootstrapping' | 'raised' | 'planning_to_raise' | 'can_invest' | 'not_sure';
       gender: 'woman' | 'man' | 'non_binary' | 'other' | 'prefer_not_to_say';
+      importance_level: 'very' | 'somewhat' | 'not_really';
+      living_arrangement: 'with_family' | 'on_our_own' | 'open' | 'not_sure';
+      marital_status: 'never_married' | 'divorced' | 'separated' | 'widowed' | 'prefer_not_to_say';
+      marriage_timeline: 'within_1_year' | 'one_to_two_years' | 'two_to_three_years' | 'not_sure';
       match_status: 'active' | 'closed';
       meet_intent: 'dating' | 'life_partner' | 'networking' | 'co_founder';
       meet_status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
@@ -986,11 +1204,33 @@ export type Database = {
         | 'verification_approved'
         | 'verification_rejected'
         | 'safety_update';
+      occupation_status: 'working' | 'studying' | 'both' | 'neither' | 'prefer_not_to_say';
       payment_order_status: 'created' | 'attempted' | 'paid';
       payment_status: 'created' | 'authorized' | 'captured' | 'refunded' | 'failed';
+      pet_preference: 'have_pets' | 'want_pets' | 'no_pets' | 'allergic';
       photo_moderation: 'pending' | 'approved' | 'rejected';
       refund_speed: 'normal' | 'optimum';
       refund_status: 'pending' | 'processed' | 'failed';
+      relationship_goal:
+        | 'long_term'
+        | 'long_term_open_to_short'
+        | 'short_term_open_to_long'
+        | 'short_term'
+        | 'figuring_out';
+      religion:
+        | 'hindu'
+        | 'muslim'
+        | 'christian'
+        | 'sikh'
+        | 'jain'
+        | 'buddhist'
+        | 'parsi'
+        | 'jewish'
+        | 'spiritual'
+        | 'not_religious'
+        | 'other'
+        | 'prefer_not_to_say';
+      relocation_openness: 'yes' | 'maybe' | 'no';
       report_category:
         | 'harassment'
         | 'safety'
@@ -1001,7 +1241,12 @@ export type Database = {
         | 'other';
       report_severity: 'low' | 'medium' | 'high' | 'critical';
       report_status: 'open' | 'investigating' | 'actioned' | 'dismissed';
+      sleep_schedule: 'early_bird' | 'night_owl' | 'varies';
+      smoking_habit: 'never' | 'socially' | 'regularly' | 'trying_to_quit' | 'prefer_not_to_say';
+      startup_stage: 'idea' | 'prototype' | 'launched' | 'revenue';
+      study_mode: 'full_time' | 'part_time';
       verification_status: 'unverified' | 'pending' | 'verified' | 'rejected';
+      work_mode: 'on_site' | 'hybrid' | 'remote' | 'flexible';
     };
     CompositeTypes: Record<never, never>;
   };
@@ -1045,6 +1290,7 @@ export type Database = {
           last_active_at: string | null;
           created_at: string | null;
           updated_at: string | null;
+          onboarding_completed_at: string | null;
         };
         Relationships: [];
       };
@@ -1156,6 +1402,63 @@ export type Database = {
           quiet_hours_start: string | null;
           quiet_hours_end: string | null;
           updated_at: string | null;
+        };
+        Relationships: [];
+      };
+      my_profile_details: {
+        Row: {
+          member_id: string | null;
+          last_name: string | null;
+          pronouns: string | null;
+          hometown: string | null;
+          languages: string[] | null;
+          occupation_status: Database['public']['Enums']['occupation_status'] | null;
+          education_level: Database['public']['Enums']['education_level'] | null;
+          institution: string | null;
+          degree: string | null;
+          field_of_study: string | null;
+          graduation_year: number | null;
+          study_year: number | null;
+          study_mode: Database['public']['Enums']['study_mode'] | null;
+          previous_education: string | null;
+          internship: string | null;
+          career_interests: string[] | null;
+          skills: string[] | null;
+          occupation: string | null;
+          job_title: string | null;
+          company: string | null;
+          industry: string | null;
+          years_experience: number | null;
+          work_location: string | null;
+          work_mode: Database['public']['Enums']['work_mode'] | null;
+          smoking: Database['public']['Enums']['smoking_habit'] | null;
+          drinking: Database['public']['Enums']['drinking_habit'] | null;
+          diet: Database['public']['Enums']['diet_preference'] | null;
+          exercise: Database['public']['Enums']['exercise_habit'] | null;
+          sleep: Database['public']['Enums']['sleep_schedule'] | null;
+          pets: Database['public']['Enums']['pet_preference'] | null;
+          prompts: Json | null;
+          hidden_fields: string[] | null;
+          onboarding_step: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+          relationship_goal: Database['public']['Enums']['relationship_goal'] | null;
+          children_plan: Database['public']['Enums']['children_plan'] | null;
+          partner_values: string[] | null;
+          marriage_timeline: Database['public']['Enums']['marriage_timeline'] | null;
+          marital_status: Database['public']['Enums']['marital_status'] | null;
+          religion: Database['public']['Enums']['religion'] | null;
+          faith_importance: Database['public']['Enums']['importance_level'] | null;
+          living_arrangement: Database['public']['Enums']['living_arrangement'] | null;
+          family_involvement: Database['public']['Enums']['family_involvement'] | null;
+          open_to_relocate: Database['public']['Enums']['relocation_openness'] | null;
+          cofounder_role: Database['public']['Enums']['cofounder_role'] | null;
+          startup_stage: Database['public']['Enums']['startup_stage'] | null;
+          founder_skills: Database['public']['Enums']['founder_skill'][] | null;
+          seeking_skills: Database['public']['Enums']['founder_skill'][] | null;
+          founder_commitment: Database['public']['Enums']['founder_commitment'] | null;
+          startup_industries: string[] | null;
+          funding_plan: Database['public']['Enums']['funding_plan'] | null;
         };
         Relationships: [];
       };
@@ -1275,6 +1578,10 @@ export type Database = {
         };
         Returns: string;
       };
+      complete_my_onboarding: {
+        Args: Record<never, never>;
+        Returns: string;
+      };
       contract_version: {
         Args: Record<never, never>;
         Returns: string;
@@ -1293,6 +1600,12 @@ export type Database = {
           p_ids: string[];
         };
         Returns: number;
+      };
+      profile_details_for: {
+        Args: {
+          p_member_id: string;
+        };
+        Returns: unknown[];
       };
       record_decision: {
         Args: {

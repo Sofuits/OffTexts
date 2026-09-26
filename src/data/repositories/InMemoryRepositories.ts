@@ -1,6 +1,7 @@
 import {
   averageRating,
   DEFAULT_PREFERENCES,
+  EMPTY_PROFILE_DETAILS,
   MAX_PHOTOS,
   type AuthState,
   type Candidate,
@@ -16,6 +17,8 @@ import {
   type Photo,
   type Preferences,
   type PreferencesUpdate,
+  type ProfileDetails,
+  type ProfileDetailsUpdate,
   type Review,
   type Session,
   type Venue,
@@ -36,6 +39,7 @@ import {
   type OAuthProvider,
   type PhotoRepository,
   type PreferencesRepository,
+  type ProfileDetailsRepository,
   type ProfileRepository,
   type ProfileUpdate,
   type Result,
@@ -96,6 +100,58 @@ export class InMemoryProfileRepository implements ProfileRepository {
     await delay();
     this.me = { ...this.me, ...update };
     return success(clone(this.me));
+  }
+
+  /**
+   * Stamps the profile as finished without re-checking it.
+   *
+   * The real server repeats the completeness checks; this fake has no view of
+   * photos or details to repeat them against. `CompleteOnboarding` makes the
+   * same checks before calling, which is what the tests exercise.
+   */
+  async completeMyOnboarding(): Promise<Result<Person>> {
+    await delay();
+    this.me = {
+      ...this.me,
+      onboardingCompletedAt: this.me.onboardingCompletedAt ?? new Date().toISOString(),
+    };
+    return success(clone(this.me));
+  }
+}
+
+/* ===================================================== profile details ===== */
+
+export class InMemoryProfileDetailsRepository implements ProfileDetailsRepository {
+  private details: ProfileDetails = clone(EMPTY_PROFILE_DETAILS);
+
+  async getMyDetails(): Promise<Result<ProfileDetails>> {
+    await delay();
+    return success(clone(this.details));
+  }
+
+  async updateMyDetails(update: ProfileDetailsUpdate): Promise<Result<ProfileDetails>> {
+    await delay();
+
+    // Same semantics as the real one: `null` clears, absent leaves alone.
+    const next: Record<string, unknown> = { ...this.details };
+    for (const [key, value] of Object.entries(update)) {
+      if (value === undefined) continue;
+      if (value === null) {
+        const empty = (EMPTY_PROFILE_DETAILS as Record<string, unknown>)[key];
+        if (empty === undefined) delete next[key];
+        else next[key] = clone(empty);
+      } else {
+        next[key] = clone(value);
+      }
+    }
+    this.details = next as ProfileDetails;
+    return success(clone(this.details));
+  }
+
+  /** Seeded people have no common profile yet, which is a state the real one returns too. */
+  async getDetailsFor(): Promise<Result<ProfileDetails | null>> {
+    await delay();
+    return success(null);
   }
 }
 

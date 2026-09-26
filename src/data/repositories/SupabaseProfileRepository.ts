@@ -109,6 +109,37 @@ export class SupabaseProfileRepository implements ProfileRepository {
     return result;
   }
 
+  async completeMyOnboarding(): Promise<Result<Person>> {
+    const result = await attempt(async () => {
+      const userId = await this.currentUserId();
+      if (!userId) throw new AppError('unauthenticated', 'You are not signed in.');
+
+      const { error: rpcError } = await this.client.schema('api_v1').rpc('complete_my_onboarding');
+
+      if (rpcError) {
+        // 22023 is the function saying what is missing, in words written for
+        // a member (see migrations 0012 and 0014). Every other failure goes through the
+        // usual translation, which does not trust a database's wording.
+        if (rpcError.code === '22023') {
+          throw new AppError('validation', rpcError.message, { cause: rpcError });
+        }
+        throw rpcError;
+      }
+
+      const { data, error } = await this.client
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+      return toPerson(data);
+    }, classifySupabaseError);
+
+    if (result.ok) await this.cache.write(result.value);
+    return result;
+  }
+
   /** Not on the interface. Called on sign-out to drop the cached profile. */
   async clearCache(): Promise<Result<void>> {
     await this.cache.clear();

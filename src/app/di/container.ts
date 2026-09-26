@@ -5,6 +5,7 @@ import {
   InMemoryMeetRepository,
   InMemoryPhotoRepository,
   InMemoryPreferencesRepository,
+  InMemoryProfileDetailsRepository,
   InMemoryProfileRepository,
   InMemoryReviewRepository,
   InMemoryVenueRepository,
@@ -14,6 +15,7 @@ import {
   SupabaseMeetRepository,
   SupabasePhotoRepository,
   SupabasePreferencesRepository,
+  SupabaseProfileDetailsRepository,
   SupabaseProfileRepository,
   SupabaseReviewRepository,
   SupabaseVenueRepository,
@@ -26,6 +28,7 @@ import type {
   MeetRepository,
   PhotoRepository,
   PreferencesRepository,
+  ProfileDetailsRepository,
   ProfileRepository,
   ReviewRepository,
   VenueRepository,
@@ -38,6 +41,7 @@ import {
   PASSWORD_REQUIREMENTS,
   type PasswordRequirement,
   ResendVerificationCode,
+  SaveOnboardingStep,
   SignIn,
   SignInWithGoogle,
   SignOut,
@@ -48,6 +52,11 @@ import {
   VerifyPasswordResetCode,
 } from '@/domain/usecases';
 import { NoopAnalytics, type Analytics } from '@/infrastructure/analytics';
+import {
+  ExpoLocationService,
+  UnavailableLocationService,
+  type LocationService,
+} from '@/infrastructure/location';
 import { ConsoleLogger, SentryLogger, type Logger } from '@/infrastructure/logging';
 import {
   ExpoImagePicker,
@@ -103,6 +112,7 @@ export type Container = {
     meets: MeetRepository;
     photos: PhotoRepository;
     preferences: PreferencesRepository;
+    profileDetails: ProfileDetailsRepository;
     reviews: ReviewRepository;
     venues: VenueRepository;
   };
@@ -116,6 +126,7 @@ export type Container = {
     verifyPasswordResetCode: VerifyPasswordResetCode;
     signInWithGoogle: SignInWithGoogle;
     signOut: SignOut;
+    saveOnboardingStep: SaveOnboardingStep;
     completeOnboarding: CompleteOnboarding;
     getScheduledMeets: GetScheduledMeets;
     requestMeet: RequestMeet;
@@ -126,6 +137,7 @@ export type Container = {
     analytics: Analytics;
     notifications: NotificationService;
     imagePicker: ImagePickerService;
+    location: LocationService;
     connectivity: ConnectivityMonitor;
     secureStore: KeyValueStore;
     store: KeyValueStore;
@@ -202,6 +214,7 @@ function buildSupabaseRepositories(
     meets: new SupabaseMeetRepository(client, meetCache, connectivity, logger),
     photos: new SupabasePhotoRepository(client),
     preferences: new SupabasePreferencesRepository(client),
+    profileDetails: new SupabaseProfileDetailsRepository(client),
     reviews: new SupabaseReviewRepository(client),
     venues: new SupabaseVenueRepository(client),
   };
@@ -227,6 +240,7 @@ function buildInMemoryRepositories(startSignedIn = false): Container['repositori
     }),
     photos: new InMemoryPhotoRepository(),
     preferences: new InMemoryPreferencesRepository(),
+    profileDetails: new InMemoryProfileDetailsRepository(),
     reviews: new InMemoryReviewRepository(),
     venues,
   };
@@ -237,6 +251,7 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
   const analytics = overrides.services?.analytics ?? new NoopAnalytics();
   const notifications = overrides.services?.notifications ?? new NoopNotificationService();
   const imagePicker = overrides.services?.imagePicker ?? new ExpoImagePicker();
+  const location = overrides.services?.location ?? new ExpoLocationService();
   const connectivity = overrides.services?.connectivity ?? new NetInfoConnectivityMonitor();
   const secureStore = overrides.services?.secureStore ?? new SecureKeyValueStore(logger);
   const store = overrides.services?.store ?? new AsyncStorageStore(logger);
@@ -295,7 +310,16 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
       signOut: new SignOut(repositories.auth, async () => {
         await Promise.all(KEYS_TO_CLEAR_ON_SIGN_OUT.map((key) => store.removeItem(key)));
       }),
-      completeOnboarding: new CompleteOnboarding(repositories.profile, repositories.preferences),
+      saveOnboardingStep: new SaveOnboardingStep(
+        repositories.profile,
+        repositories.profileDetails,
+        repositories.preferences,
+      ),
+      completeOnboarding: new CompleteOnboarding(
+        repositories.profile,
+        repositories.profileDetails,
+        repositories.photos,
+      ),
       getScheduledMeets: new GetScheduledMeets(repositories.meets),
       requestMeet: new RequestMeet(repositories.meets),
       submitReview: new SubmitReview(repositories.reviews),
@@ -305,6 +329,7 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
       analytics,
       notifications,
       imagePicker,
+      location,
       connectivity,
       secureStore,
       store,
@@ -341,6 +366,7 @@ export function createTestContainer(overrides: ContainerOverrides = {}): Contain
       // No camera roll under Jest. The UI reads `isAvailable` and hides the
       // control, so a test never has to mock a native picker.
       imagePicker: new UnavailableImagePicker(),
+      location: new UnavailableLocationService(),
       connectivity: new AlwaysOnlineMonitor(),
       secureStore: new InMemoryStore(),
       store: new InMemoryStore(),

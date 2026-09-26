@@ -718,10 +718,10 @@ set request.jwt.claim.sub = 'aaaa0000-0000-4000-8000-000000000002';   -- Bhavya
 
 do $$
 begin
-  if api_v1.contract_version() <> '1.0.0' then
-    raise exception 'FAILED: contract_version() is %, expected 1.0.0', api_v1.contract_version();
+  if api_v1.contract_version() <> '1.2.0' then
+    raise exception 'FAILED: contract_version() is %, expected 1.2.0', api_v1.contract_version();
   end if;
-  perform pg_temp.ok('contract_version() reports 1.0.0');
+  perform pg_temp.ok('contract_version() reports 1.2.0');
 
   if (select count(*) from api_v1.me) <> 1 then
     raise exception 'FAILED: api_v1.me did not return exactly one row';
@@ -865,7 +865,7 @@ reset request.jwt.claim.sub;
 set role anon;
 do $$
 begin
-  if api_v1.contract_version() <> '1.0.0' then
+  if api_v1.contract_version() <> '1.2.0' then
     raise exception 'FAILED: an anonymous caller cannot read the contract version';
   end if;
   perform pg_temp.ok('an anonymous caller can read the contract version');
@@ -876,6 +876,369 @@ call pg_temp.rejects($$select 1 from api_v1.me$$,
   '42501', 'an anonymous caller cannot read anything else in api_v1');
 
 reset role;
+
+
+-- --------------------------------------------------------- common profile ---
+
+\echo 'behaviour: common profile'
+
+-- Bhavya has finished onboarding and hides where she works. Her surname is
+-- hidden by default. Divya is a verified member looking at her profile.
+update public.profiles set onboarding_completed_at = now()
+ where id = 'aaaa0000-0000-4000-8000-000000000002';
+
+set role authenticated;
+set request.jwt.claim.sub = 'aaaa0000-0000-4000-8000-000000000002';   -- Bhavya
+
+insert into public.profile_details (member_id, last_name, company, job_title, hidden_fields, prompts)
+values ('aaaa0000-0000-4000-8000-000000000002', 'Shah', 'Acme', 'Designer',
+        '{last_name,company}',
+        '[{"key":"perfect_weekend","answer":"A long walk and a longer breakfast."}]');
+
+do $$
+begin
+  if (select company from public.profile_details where member_id = auth.uid()) is distinct from 'Acme' then
+    raise exception 'FAILED: a member cannot read their own hidden answers';
+  end if;
+  if (select company from api_v1.profile_details_for(auth.uid())) is distinct from 'Acme' then
+    raise exception 'FAILED: profile_details_for hides a member''s answers from themselves';
+  end if;
+  perform pg_temp.ok('a member sees all of their own common profile');
+end;
+$$;
+
+call pg_temp.rejects(
+  $$update public.profile_details set prompts = '[{"key":"not_a_prompt","answer":"x"}]'$$,
+  '23514', 'an unknown prompt is rejected');
+call pg_temp.rejects(
+  $$update public.profile_details set prompts = '[{"key":"talk_for_hours","answer":"a"},{"key":"talk_for_hours","answer":"b"}]'$$,
+  '23514', 'the same prompt twice is rejected');
+call pg_temp.rejects(
+  $$update public.profile_details set hidden_fields = '{date_of_birth}'$$,
+  '23514', 'only the hideable answers can be hidden');
+
+reset role;
+reset request.jwt.claim.sub;
+
+set role authenticated;
+set request.jwt.claim.sub = 'aaaa0000-0000-4000-8000-000000000004';   -- Divya
+
+do $$
+declare
+  seen record;
+begin
+  if exists (select 1 from public.profile_details
+             where member_id = 'aaaa0000-0000-4000-8000-000000000002') then
+    raise exception 'FAILED: a member can read somebody else''s profile_details row directly';
+  end if;
+  perform pg_temp.ok('another member cannot read the details table directly');
+
+  select * into seen from api_v1.profile_details_for('aaaa0000-0000-4000-8000-000000000002');
+  if seen.member_id is null then
+    raise exception 'FAILED: a verified, onboarded member''s details are not readable';
+  end if;
+  if seen.company is not null or seen.last_name is not null then
+    raise exception 'FAILED: hidden answers leaked: company=%, last_name=%', seen.company, seen.last_name;
+  end if;
+  if seen.job_title is distinct from 'Designer' then
+    raise exception 'FAILED: a shown answer was hidden';
+  end if;
+  perform pg_temp.ok('profile_details_for blanks exactly the hidden answers');
+end;
+$$;
+
+call pg_temp.rejects($$select api_v1.complete_my_onboarding()$$,
+  '22023', 'onboarding cannot be completed with an unfinished profile');
+
+reset role;
+reset request.jwt.claim.sub;
+
+-- An unfinished profile is not shown, even to a verified member.
+update public.profiles set onboarding_completed_at = null
+ where id = 'aaaa0000-0000-4000-8000-000000000002';
+
+set role authenticated;
+set request.jwt.claim.sub = 'aaaa0000-0000-4000-8000-000000000004';   -- Divya
+do $$
+begin
+  if exists (select 1 from api_v1.profile_details_for('aaaa0000-0000-4000-8000-000000000002')) then
+    raise exception 'FAILED: an unfinished profile''s details are readable by others';
+  end if;
+  perform pg_temp.ok('an unfinished profile is not shown to others');
+end;
+$$;
+reset role;
+reset request.jwt.claim.sub;
+
+set role anon;
+call pg_temp.rejects(
+  $$select * from api_v1.profile_details_for('aaaa0000-0000-4000-8000-000000000002')$$,
+  '42501', 'an anonymous caller cannot read anybody''s details');
+reset role;
+
+
+-- --------------------------------------------------------- category answers --
+
+\echo 'behaviour: category answers'
+
+-- Bhavya is back to finished, now here for a co-founder, with answers left
+-- over from other purposes too. Divya is the verified member looking.
+update public.profiles
+   set onboarding_completed_at = now(), intents = '{co_founder}'
+ where id = 'aaaa0000-0000-4000-8000-000000000002';
+update public.profile_details
+   set relationship_goal = 'long_term',
+       marriage_timeline = 'within_1_year',
+       marital_status = 'never_married',
+       religion = 'hindu',
+       cofounder_role = 'have_startup',
+       founder_commitment = 'full_time_now',
+       seeking_skills = '{engineering}'
+ where member_id = 'aaaa0000-0000-4000-8000-000000000002';
+
+set role authenticated;
+set request.jwt.claim.sub = 'aaaa0000-0000-4000-8000-000000000004';   -- Divya
+do $$
+declare seen record;
+begin
+  select * into seen from api_v1.profile_details_for('aaaa0000-0000-4000-8000-000000000002');
+  if seen.cofounder_role is distinct from 'have_startup' then
+    raise exception 'FAILED: the current purpose''s answers are not shown';
+  end if;
+  if seen.relationship_goal is not null or seen.marriage_timeline is not null then
+    raise exception 'FAILED: answers for another purpose were shown';
+  end if;
+  perform pg_temp.ok('only the current purpose''s answers are shown to others');
+end;
+$$;
+reset role;
+reset request.jwt.claim.sub;
+
+-- Now looking for a life partner. Her row was written by the 0012 tests with
+-- an explicit hidden_fields that does not include religion, so it shows
+-- until she hides it — which is the "member chose to show it" case.
+update public.profiles set intents = '{life_partner}'
+ where id = 'aaaa0000-0000-4000-8000-000000000002';
+
+set role authenticated;
+set request.jwt.claim.sub = 'aaaa0000-0000-4000-8000-000000000004';   -- Divya
+do $$
+declare seen record;
+begin
+  select * into seen from api_v1.profile_details_for('aaaa0000-0000-4000-8000-000000000002');
+  if seen.marriage_timeline is distinct from 'within_1_year' or seen.cofounder_role is not null then
+    raise exception 'FAILED: switching purpose did not switch which answers are shown';
+  end if;
+  if seen.religion is distinct from 'hindu' then
+    raise exception 'FAILED: a religion the member chose to show was hidden';
+  end if;
+  perform pg_temp.ok('switching purpose switches which answers are shown');
+end;
+$$;
+reset role;
+reset request.jwt.claim.sub;
+
+update public.profile_details set hidden_fields = '{last_name,company,religion}'
+ where member_id = 'aaaa0000-0000-4000-8000-000000000002';
+
+set role authenticated;
+set request.jwt.claim.sub = 'aaaa0000-0000-4000-8000-000000000004';   -- Divya
+do $$
+begin
+  if (select religion from api_v1.profile_details_for('aaaa0000-0000-4000-8000-000000000002')) is not null then
+    raise exception 'FAILED: a hidden religion was shown to another member';
+  end if;
+  perform pg_temp.ok('a hidden religion is not shown to other members');
+end;
+$$;
+reset role;
+reset request.jwt.claim.sub;
+
+set role authenticated;
+set request.jwt.claim.sub = 'aaaa0000-0000-4000-8000-000000000002';   -- Bhavya
+do $$
+declare seen record;
+begin
+  select * into seen from api_v1.profile_details_for(auth.uid());
+  if seen.religion is distinct from 'hindu' or seen.cofounder_role is distinct from 'have_startup' then
+    raise exception 'FAILED: a member cannot see all of their own answers';
+  end if;
+  perform pg_temp.ok('a member sees all of their own answers, hidden or for another purpose');
+end;
+$$;
+call pg_temp.rejects(
+  $$update public.profile_details set partner_values = '{kindness,humour,ambition,honesty}'$$,
+  '23514', 'at most three partner values');
+call pg_temp.rejects(
+  $$update public.profile_details set partner_values = '{wealth}'$$,
+  '23514', 'an unknown partner value is rejected');
+call pg_temp.rejects(
+  $$update public.profile_details set seeking_skills = '{engineering,product,design,sales}'$$,
+  '23514', 'at most three co-founder skills');
+reset role;
+reset request.jwt.claim.sub;
+
+-- Completion, per purpose. Divya has everything common; only the category
+-- answers are missing at each stage.
+update public.profiles
+   set bio = 'Runs a studio; would rather meet than message.',
+       intents = '{dating}', onboarding_completed_at = null
+ where id = 'aaaa0000-0000-4000-8000-000000000004';
+insert into public.photos (member_id, storage_path, url, sort_order) values
+  ('aaaa0000-0000-4000-8000-000000000004', 'aaaa0000-0000-4000-8000-000000000004/1.jpg', 'https://example.test/1.jpg', 1),
+  ('aaaa0000-0000-4000-8000-000000000004', 'aaaa0000-0000-4000-8000-000000000004/2.jpg', 'https://example.test/2.jpg', 2);
+
+set role authenticated;
+set request.jwt.claim.sub = 'aaaa0000-0000-4000-8000-000000000004';   -- Divya
+insert into public.profile_details (member_id, occupation_status)
+values ('aaaa0000-0000-4000-8000-000000000004', 'working');
+do $$
+begin
+  if not (select 'religion' = any (hidden_fields) from public.profile_details where member_id = auth.uid()) then
+    raise exception 'FAILED: religion does not start hidden';
+  end if;
+  perform pg_temp.ok('religion starts hidden');
+end;
+$$;
+
+call pg_temp.rejects($$select api_v1.complete_my_onboarding()$$,
+  '22023', 'dating: cannot finish without a relationship goal');
+update public.profile_details set relationship_goal = 'long_term' where member_id = auth.uid();
+do $$
+begin
+  if api_v1.complete_my_onboarding() is null then
+    raise exception 'FAILED: a complete dating profile could not finish onboarding';
+  end if;
+  perform pg_temp.ok('dating: finishes with a relationship goal');
+end;
+$$;
+reset role;
+reset request.jwt.claim.sub;
+
+update public.profiles set intents = '{life_partner}', onboarding_completed_at = null
+ where id = 'aaaa0000-0000-4000-8000-000000000004';
+set role authenticated;
+set request.jwt.claim.sub = 'aaaa0000-0000-4000-8000-000000000004';   -- Divya
+update public.profile_details set marriage_timeline = 'one_to_two_years' where member_id = auth.uid();
+call pg_temp.rejects($$select api_v1.complete_my_onboarding()$$,
+  '22023', 'life partner: cannot finish without a marital status');
+update public.profile_details set marital_status = 'never_married' where member_id = auth.uid();
+do $$
+begin
+  if api_v1.complete_my_onboarding() is null then
+    raise exception 'FAILED: a complete life-partner profile could not finish onboarding';
+  end if;
+  perform pg_temp.ok('life partner: finishes with a timeline and marital status');
+end;
+$$;
+reset role;
+reset request.jwt.claim.sub;
+
+update public.profiles set intents = '{co_founder}', onboarding_completed_at = null
+ where id = 'aaaa0000-0000-4000-8000-000000000004';
+set role authenticated;
+set request.jwt.claim.sub = 'aaaa0000-0000-4000-8000-000000000004';   -- Divya
+update public.profile_details
+   set cofounder_role = 'want_to_join', founder_commitment = 'part_time'
+ where member_id = auth.uid();
+call pg_temp.rejects($$select api_v1.complete_my_onboarding()$$,
+  '22023', 'co-founder: cannot finish without a skill to look for');
+update public.profile_details set seeking_skills = '{sales}' where member_id = auth.uid();
+do $$
+begin
+  if api_v1.complete_my_onboarding() is null then
+    raise exception 'FAILED: a complete co-founder profile could not finish onboarding';
+  end if;
+  perform pg_temp.ok('co-founder: finishes with a role, a commitment and a skill to look for');
+end;
+$$;
+reset role;
+reset request.jwt.claim.sub;
+
+
+-- ---------------------------------------------------- onboarding hardening --
+
+\echo 'behaviour: onboarding hardening'
+
+set role authenticated;
+set request.jwt.claim.sub = 'aaaa0000-0000-4000-8000-000000000001';   -- Ava
+
+-- The whole point of complete_my_onboarding() is that it checks first. A
+-- member writing the column directly would skip every check.
+call pg_temp.rejects(
+  $$update public.profiles set onboarding_completed_at = now() where id = auth.uid()$$,
+  '42501', 'a member cannot mark their own onboarding finished directly');
+
+do $$
+begin
+  update public.profiles set headline = 'Still editable.' where id = auth.uid();
+  if (select headline from public.profiles where id = auth.uid()) <> 'Still editable.' then
+    raise exception 'FAILED: the guard blocked an ordinary profile edit';
+  end if;
+  perform pg_temp.ok('ordinary profile edits are unaffected by the guard');
+end;
+$$;
+
+call pg_temp.rejects(
+  $$insert into public.profile_details (member_id, languages) values (auth.uid(), array[repeat('x', 61)])$$,
+  '23514', 'a list item over 60 characters is rejected');
+call pg_temp.rejects(
+  $$insert into public.profile_details (member_id, skills) values (auth.uid(), array['  '])$$,
+  '23514', 'a blank list item is rejected');
+call pg_temp.rejects(
+  $$update public.profiles set interests = array['Coffee', ''] where id = auth.uid()$$,
+  '23514', 'a blank interest is rejected');
+
+reset role;
+reset request.jwt.claim.sub;
+
+set role authenticated;
+set request.jwt.claim.sub = 'aaaa0000-0000-4000-8000-000000000004';   -- Divya, finished above
+call pg_temp.rejects(
+  $$update public.profiles set onboarding_completed_at = null where id = auth.uid()$$,
+  '42501', 'a member cannot clear their own completion either');
+reset role;
+reset request.jwt.claim.sub;
+
+-- Staff tooling and migrations run as other roles and are unaffected.
+do $$
+begin
+  update public.profiles set onboarding_completed_at = null
+   where id = 'aaaa0000-0000-4000-8000-000000000004';
+  perform pg_temp.ok('an administrator can still reset a member''s completion');
+end;
+$$;
+
+-- profile_details_for() must return every shareable column and nothing
+-- private. Checked from the catalog, so a column added to the table later
+-- without being added to the function — or a private one added to it —
+-- fails here instead of in production.
+do $$
+declare
+  shared text[];
+  returned text[];
+begin
+  select array_agg(attname::text order by attnum) into shared
+  from pg_attribute
+  where attrelid = 'public.profile_details'::regclass
+    and attnum > 0 and not attisdropped
+    and attname not in ('hidden_fields', 'onboarding_step', 'created_at', 'updated_at');
+
+  select array_agg(p.parameter_name::text order by p.ordinal_position) into returned
+  from information_schema.parameters p
+  join information_schema.routines r
+    on r.specific_schema = p.specific_schema and r.specific_name = p.specific_name
+  where r.routine_schema = 'api_v1'
+    and r.routine_name = 'profile_details_for'
+    and p.parameter_mode = 'OUT';
+
+  if shared is distinct from returned then
+    raise exception E'FAILED: profile_details_for() columns drifted from the table.\n  table:    %\n  function: %',
+      shared, returned;
+  end if;
+  perform pg_temp.ok('profile_details_for() returns every shareable column and no private one');
+end;
+$$;
 
 
 -- ----------------------------------------------------- deletion behaviour ---

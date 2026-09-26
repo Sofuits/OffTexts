@@ -34,6 +34,81 @@ export const ROUTES = {
  */
 export const SUGGESTED_CITIES = ['Pune', 'Mumbai', 'Bengaluru', 'Delhi', 'Hyderabad'] as const;
 
+/** Offered on the languages question. Anything else may be typed. */
+export const SUGGESTED_LANGUAGES = [
+  'English',
+  'Hindi',
+  'Marathi',
+  'Bengali',
+  'Tamil',
+  'Telugu',
+  'Kannada',
+  'Malayalam',
+  'Gujarati',
+  'Punjabi',
+  'Urdu',
+  'Odia',
+] as const;
+
+/** Shortcuts on the pronouns field. It is free text; these just save typing. */
+export const SUGGESTED_PRONOUNS = ['she/her', 'he/him', 'they/them'] as const;
+
+/** Starting points for a student's career interests. */
+export const SUGGESTED_CAREER_INTERESTS = [
+  'Software',
+  'Design',
+  'Product',
+  'Finance',
+  'Consulting',
+  'Research',
+  'Medicine',
+  'Law',
+  'Marketing',
+  'Startups',
+  'Public policy',
+  'Education',
+] as const;
+
+/** Starting points for skills. */
+export const SUGGESTED_SKILLS = [
+  'Programming',
+  'Data analysis',
+  'Writing',
+  'Public speaking',
+  'Design',
+  'Sales',
+  'Marketing',
+  'Research',
+  'Leadership',
+  'Languages',
+] as const;
+
+/** Starting points for a co-founder's industries. Anything else may be typed. */
+export const SUGGESTED_STARTUP_INDUSTRIES = [
+  'Fintech',
+  'Healthtech',
+  'Edtech',
+  'Climate',
+  'SaaS',
+  'Consumer',
+  'AI',
+  'D2C',
+  'Logistics',
+  'Agritech',
+] as const;
+
+/** Starting points for industry. Free text, like everything here. */
+export const SUGGESTED_INDUSTRIES = [
+  'Technology',
+  'Finance',
+  'Healthcare',
+  'Education',
+  'Consulting',
+  'Media',
+  'Manufacturing',
+  'Government',
+] as const;
+
 /**
  * Starting points for the interests question.
  *

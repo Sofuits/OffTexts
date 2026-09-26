@@ -3,6 +3,8 @@ export * from './Meet';
 export * from './Person';
 export * from './Photo';
 export * from './Preferences';
+export * from './ProfileDetails';
+export * from './profileCompleteness';
 export * from './Review';
 export * from './Session';
 export * from './Venue';

@@ -32,13 +32,21 @@ export interface ImagePickerService {
    * screen has to explain.
    */
   pickFromLibrary(): Promise<PickedImage | null>;
+  /**
+   * Opens the camera and returns the photo taken. Same contract as
+   * `pickFromLibrary`: `null` for backing out, a throw for a refused permission.
+   */
+  takePhoto(): Promise<PickedImage | null>;
   /** True when this build can pick at all. False on web and under test. */
   readonly isAvailable: boolean;
+  /** True when there is a camera to open. */
+  readonly canUseCamera: boolean;
 }
 
 /** The real one. */
 export class ExpoImagePicker implements ImagePickerService {
   readonly isAvailable = true;
+  readonly canUseCamera = true;
 
   async pickFromLibrary(): Promise<PickedImage | null> {
     const permission = await ExpoPicker.requestMediaLibraryPermissionsAsync();
@@ -54,27 +62,45 @@ export class ExpoImagePicker implements ImagePickerService {
       );
     }
 
-    const result = await ExpoPicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      // Square, because every place a photo appears in this app is square or a
-      // circle. Cropping here means the member chooses the crop instead of an
-      // algorithm choosing it for them later.
-      allowsEditing: true,
-      aspect: [1, 1],
-      // 0.8 rather than 1: the difference is invisible at the sizes we display
-      // and roughly halves what gets uploaded over a phone connection.
-      quality: 0.8,
-      exif: false,
-      base64: false,
-    });
-
-    if (result.canceled) return null;
-
-    const asset = result.assets[0];
-    if (!asset) return null;
-
-    return { uri: asset.uri, width: asset.width, height: asset.height };
+    return toPicked(await ExpoPicker.launchImageLibraryAsync(PICKER_OPTIONS));
   }
+
+  async takePhoto(): Promise<PickedImage | null> {
+    const permission = await ExpoPicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      throw new Error(
+        permission.canAskAgain
+          ? 'Offtexts needs permission to use your camera.'
+          : 'Camera access is off for Offtexts. You can turn it on in your phone’s settings.',
+      );
+    }
+
+    return toPicked(await ExpoPicker.launchCameraAsync(PICKER_OPTIONS));
+  }
+}
+
+const PICKER_OPTIONS: ExpoPicker.ImagePickerOptions = {
+  mediaTypes: ['images'],
+  // Square, because every place a photo appears in this app is square or a
+  // circle. Cropping here means the member chooses the crop instead of an
+  // algorithm choosing it for them later.
+  allowsEditing: true,
+  aspect: [1, 1],
+  // 0.8 rather than 1: the difference is invisible at the sizes we display
+  // and roughly halves what gets uploaded over a phone connection.
+  quality: 0.8,
+  exif: false,
+  base64: false,
+};
+
+function toPicked(result: ExpoPicker.ImagePickerResult): PickedImage | null {
+  if (result.canceled) return null;
+
+  const asset = result.assets[0];
+  if (!asset) return null;
+
+  return { uri: asset.uri, width: asset.width, height: asset.height };
 }
 
 /**
@@ -86,8 +112,13 @@ export class ExpoImagePicker implements ImagePickerService {
  */
 export class UnavailableImagePicker implements ImagePickerService {
   readonly isAvailable = false;
+  readonly canUseCamera = false;
 
   async pickFromLibrary(): Promise<PickedImage | null> {
+    return null;
+  }
+
+  async takePhoto(): Promise<PickedImage | null> {
     return null;
   }
 }

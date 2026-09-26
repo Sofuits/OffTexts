@@ -67,7 +67,7 @@ same component. Build two, use them twice.
 
 ---
 
-## 3. Schema — migration `0011`
+## 3. Schema — migration `0016`
 
 ```sql
 create type public.scheduling_stage as enum

@@ -40,12 +40,31 @@ psql -h "$HOST" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -d "$DB" \
   -f "$ROOT/supabase/tests/assertions.sql"
 
 echo "→ behaviour"
-# Only the NOTICEs matter here; psql's per-statement chatter does not.
-psql -h "$HOST" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -q -d "$DB" \
-  -f "$ROOT/supabase/tests/behaviour.sql" 2>&1 \
-  | grep -Ev '^(INSERT|UPDATE|DELETE|DO|SELECT|BEGIN|ROLLBACK|CREATE|CALL|COMMIT|SET|RESET)' \
-  | sed -E 's/^psql:[^ ]+ (NOTICE|INFO):  //' \
-  | grep -v '^$' || true
+# The output is captured first and filtered second, so the status that decides
+# pass or fail is psql's own. It used to be filtered in the same pipeline,
+# which needed a `|| true` so that grep filtering every line would not fail the
+# run — and that also swallowed psql's failure, so a failing test printed
+# "passed" below. ON_ERROR_STOP makes psql stop at the first failing test and
+# exit non-zero; that exit is now what this script exits with.
+set +e
+behaviour_output="$(psql -h "$HOST" -p "$PORT" -U postgres -v ON_ERROR_STOP=1 -q -d "$DB" \
+  -f "$ROOT/supabase/tests/behaviour.sql" 2>&1)"
+behaviour_status=$?
+set -e
+
+# Only the NOTICEs and any error matter here; psql's per-statement chatter
+# does not. awk rather than grep because grep exits 1 when it prints nothing.
+printf '%s\n' "$behaviour_output" | awk '
+  /^(INSERT|UPDATE|DELETE|DO|SELECT|BEGIN|ROLLBACK|CREATE|CALL|COMMIT|SET|RESET)/ { next }
+  { sub(/^psql:[^ ]+ (NOTICE|INFO):  /, "") }
+  length($0) > 0 { print }
+'
+
+if [ "$behaviour_status" -ne 0 ]; then
+  echo
+  echo "✗ Behaviour tests FAILED (psql exited $behaviour_status). The failing test is above." >&2
+  exit "$behaviour_status"
+fi
 
 echo
 echo "All migrations applied. Assertions and behaviour tests passed."

@@ -54,6 +54,9 @@ export function toPerson(row: ProfileRow): Person {
     interests: row.interests ?? [],
     intents: (row.intents ?? []).filter(isMeetIntent),
     verification: toVerification(row.verification),
+    ...(row.onboarding_completed_at === null
+      ? {}
+      : { onboardingCompletedAt: row.onboarding_completed_at }),
   };
 }
 

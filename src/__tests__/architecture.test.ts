@@ -62,6 +62,7 @@ const NATIVE_MODULES = [
   '@react-navigation/native',
   'expo-constants',
   'expo-image-picker',
+  'expo-location',
   'expo-linking',
   'expo-secure-store',
   'expo-web-browser',

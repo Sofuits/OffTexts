@@ -35,6 +35,15 @@ export interface ProfileRepository {
 
   updateMyProfile(update: ProfileUpdate): Promise<Result<Person>>;
 
+  /**
+   * Marks onboarding finished, and returns the profile as it now stands.
+   *
+   * The server checks the profile really is complete before agreeing — the
+   * app is not the only thing that can call it — and answers `validation`
+   * when it is not. See `complete_my_onboarding()` in migrations 0012 and 0014.
+   */
+  completeMyOnboarding(): Promise<Result<Person>>;
+
   // Photos are NOT here. They are files, with their own moderation state and
   // their own order, and an `uploadPhoto` that returned a URL left the caller
   // holding something it could not store. See `PhotoRepository`.

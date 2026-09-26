@@ -36,11 +36,35 @@ export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'reject
  * describe the same thing the same way.
  */
 export const MEET_INTENT_DESCRIPTIONS: Record<MeetIntent, string> = {
-  dating: 'Meet someone you might click with, over coffee rather than over text.',
-  life_partner: 'Looking for something lasting, and happy to say so.',
+  dating: 'Meet someone and see where it goes.',
+  life_partner: 'Looking for a serious relationship that could lead to marriage.',
   networking: 'Meet people in your field without a conference badge.',
-  co_founder: 'Find someone to build the thing with.',
+  co_founder: 'Find someone to build something with.',
 };
+
+/**
+ * The purposes a member can choose.
+ *
+ * `networking` is no longer offered. It stays in `MEET_INTENTS` because it is
+ * still a value in the database enum and on some existing profiles — dropping
+ * it there would fail to read those rows — but nothing new is created with it.
+ * A screen that lets somebody pick a purpose lists these, not `MEET_INTENTS`.
+ */
+export const SELECTABLE_INTENTS = ['dating', 'life_partner', 'co_founder'] as const;
+export type SelectableIntent = (typeof SELECTABLE_INTENTS)[number];
+
+/** A short emoji per purpose, for the screen that asks. */
+export const MEET_INTENT_EMOJI: Record<MeetIntent, string> = {
+  dating: '❤️',
+  life_partner: '💍',
+  networking: '🤝',
+  co_founder: '🚀',
+};
+
+/** Purposes where "who would you like to meet" is a sensible question to ask. */
+export function isRomanticIntent(intent: MeetIntent | null | undefined): boolean {
+  return intent === 'dating' || intent === 'life_partner';
+}
 
 export type Person = {
   id: PersonId;
@@ -62,6 +86,8 @@ export type Person = {
   interests: string[];
   intents: MeetIntent[];
   verification: VerificationStatus;
+  /** ISO timestamp. Absent until onboarding has been finished and checked. */
+  onboardingCompletedAt?: string;
 };
 
 /** True when this member has passed ID verification and may be shown to others. */
@@ -73,20 +99,12 @@ export function isDiscoverable(person: Person): boolean {
  * Whether this member has been through onboarding.
  *
  * The signup trigger creates a profile before the member has answered
- * anything — name `New member`, city `Pune`, everything else empty — so the
- * existence of a profile row says nothing at all. Something has to distinguish
- * "account exists" from "profile filled in", and this is it.
- *
- * The two fields chosen are the two the wizard is the only way to set and the
- * profile editor is the only way to change without being able to clear:
- * `dateOfBirth` has no default and is never blanked, and `intents` starts as an
- * empty array and the editor requires at least one.
- *
- * Headline, interests and photos are deliberately NOT part of this test. They
- * are all things a member might legitimately empty later, and a completeness
- * check that sends an existing member back through onboarding because they
- * deleted an interest is worse than one that lets a sparse profile through.
+ * anything, and onboarding now saves as it goes, so neither "a profile exists"
+ * nor "it has a date of birth" means finished. The server stamps
+ * `onboardingCompletedAt` only once it has checked the profile is complete —
+ * see `complete_my_onboarding()` in migrations 0012 and 0014 — and members who finished
+ * the earlier wizard were stamped when that migration ran.
  */
 export function hasCompletedOnboarding(person: Person): boolean {
-  return Boolean(person.dateOfBirth) && person.intents.length > 0;
+  return Boolean(person.onboardingCompletedAt);
 }

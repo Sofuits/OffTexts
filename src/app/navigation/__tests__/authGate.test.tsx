@@ -71,6 +71,7 @@ function profileReturning(person: Person): ProfileRepository {
     getMyProfile: async () => success(person),
     getProfileById: async () => success(person),
     updateMyProfile: async () => success(person),
+    completeMyOnboarding: async () => success(person),
   };
 }
 
@@ -119,8 +120,8 @@ describe('auth gate', () => {
   it('shows the app when signed in, and not the sign-in screen', async () => {
     renderWith(authIn({ status: 'signedIn', session: SESSION }));
 
-    // Today, not the wizard: the seeded profile has a date of birth and an
-    // intent, so `hasCompletedOnboarding` is true. See AuthedArea.
+    // Today, not the wizard: the seeded profile has finished onboarding, so
+    // `hasCompletedOnboarding` is true. See AuthedArea.
     expect(await screen.findByTestId('screen-today')).toBeTruthy();
     expect(screen.queryByTestId('screen-sign-in')).toBeNull();
     expect(screen.queryByTestId('onboarding-step-1')).toBeNull();
@@ -145,6 +146,7 @@ describe('auth gate', () => {
       getMyProfile: async () => failure(new AppError('network', 'No connection.')),
       getProfileById: async () => failure(new AppError('network', 'No connection.')),
       updateMyProfile: async () => failure(new AppError('network', 'No connection.')),
+      completeMyOnboarding: async () => failure(new AppError('network', 'No connection.')),
     };
 
     renderWith(authIn({ status: 'signedIn', session: SESSION }), offline);

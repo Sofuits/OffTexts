@@ -58,6 +58,9 @@ export type PreferencesRow = Table<'preferences'>;
 export type PreferencesUpdate = Updatable<'preferences'>;
 export type DecisionInsert = Insertable<'decisions'>;
 
+export type ProfileDetailsRow = Table<'profile_details'>;
+export type ProfileDetailsInsert = Insertable<'profile_details'>;
+
 export type PhotoRow = Table<'photos'>;
 export type PhotoInsert = Insertable<'photos'>;
 

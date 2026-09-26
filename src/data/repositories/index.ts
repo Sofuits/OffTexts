@@ -5,6 +5,7 @@ export {
   InMemoryMeetRepository,
   InMemoryPhotoRepository,
   InMemoryPreferencesRepository,
+  InMemoryProfileDetailsRepository,
   InMemoryProfileRepository,
   InMemoryReviewRepository,
   InMemoryVenueRepository,
@@ -17,6 +18,7 @@ export { SupabaseMatchingRepository } from './SupabaseMatchingRepository';
 export { SupabaseMeetRepository } from './SupabaseMeetRepository';
 export { SupabasePhotoRepository } from './SupabasePhotoRepository';
 export { SupabasePreferencesRepository } from './SupabasePreferencesRepository';
+export { SupabaseProfileDetailsRepository } from './SupabaseProfileDetailsRepository';
 export { SupabaseProfileRepository } from './SupabaseProfileRepository';
 export { SupabaseReviewRepository } from './SupabaseReviewRepository';
 export { SupabaseVenueRepository } from './SupabaseVenueRepository';

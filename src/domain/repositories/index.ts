@@ -5,6 +5,7 @@ export * from './MatchingRepository';
 export * from './MeetRepository';
 export * from './PhotoRepository';
 export * from './PreferencesRepository';
+export * from './ProfileDetailsRepository';
 export * from './ProfileRepository';
 export * from './Result';
 export * from './ReviewRepository';

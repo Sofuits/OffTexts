@@ -30,9 +30,6 @@ export const SEED_PEOPLE: Person[] = [
     id: 'person-1',
     name: 'Aanya Rao',
     age: 27,
-    // Seeded because `hasCompletedOnboarding` reads it. Without a date of
-    // birth the fake profile looks half-finished and the app lands every
-    // developer in the onboarding wizard on first run.
     dateOfBirth: '1999-04-12',
     gender: 'woman',
     headline: 'Product designer who would rather meet than message.',
@@ -42,6 +39,10 @@ export const SEED_PEOPLE: Person[] = [
     interests: ['Design', 'Running', 'Books'],
     intents: ['networking', 'dating'],
     verification: 'verified',
+    // Seeded because `hasCompletedOnboarding` reads it. Without it the fake
+    // profile looks half-finished and the app lands every developer in the
+    // onboarding wizard on first run.
+    onboardingCompletedAt: '2026-01-01T00:00:00.000Z',
   },
   {
     id: 'person-2',

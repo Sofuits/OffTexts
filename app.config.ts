@@ -37,6 +37,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#0B1716',
     },
     predictiveBackGestureEnabled: false,
+    // Only a city is ever looked up, which approximate location answers.
+    // Blocking precise location keeps the permission prompt honest and means
+    // there is no precise position to leak.
+    blockedPermissions: ['android.permission.ACCESS_FINE_LOCATION'],
   },
   web: {
     favicon: './assets/favicon.png',
@@ -47,6 +51,31 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     tsconfigPaths: true,
   },
   plugins: [
+    [
+      // The sentences iOS shows when asking. Read by App Review, so they say
+      // exactly what each permission is used for and nothing more.
+      'expo-image-picker',
+      {
+        photosPermission: 'Offtexts opens your photos so you can choose pictures for your profile.',
+        cameraPermission: 'Offtexts uses the camera so you can take a photo for your profile.',
+        // Photos only. Without this the plugin also requests the microphone.
+        microphonePermission: false,
+      },
+    ],
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'Offtexts uses your location once to fill in your city. Your exact location is never stored or shown.',
+        // Never in the background: the city is looked up once, while the
+        // member is on the screen that asked.
+        locationAlwaysAndWhenInUsePermission: false,
+        locationAlwaysPermission: false,
+        motionUsagePermission: false,
+        isAndroidBackgroundLocationEnabled: false,
+        isIosBackgroundLocationEnabled: false,
+      },
+    ],
     [
       'expo-build-properties',
       {

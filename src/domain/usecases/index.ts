@@ -18,7 +18,9 @@ export {
   ageOn,
   CompleteOnboarding,
   LIMITS as ONBOARDING_LIMITS,
-  type OnboardingAnswers,
+  onboardingGap,
+  SaveOnboardingStep,
+  type OnboardingStepSave,
 } from './CompleteOnboarding';
 export { GetScheduledMeets, type ScheduledMeets } from './GetScheduledMeets';
 export { RequestMeet } from './RequestMeet';

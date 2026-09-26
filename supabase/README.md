@@ -13,12 +13,23 @@ migrations/0007_meetings_and_payments.sql       meets extended; Razorpay orders,
 migrations/0008_safety_notifications_audit.sql  reports, notifications, push tokens, the audit log
 migrations/0009_rls_and_storage.sql             RLS and grants for all of the above, two more buckets
 migrations/0010_api_v1.sql                      the published contract — see docs/api/v1.md
+migrations/0012_common_profile.sql              the common profile, onboarding progress and completion
+migrations/0014_category_profiles.sql           dating, life-partner and co-founder answers; religion privacy
+migrations/0015_onboarding_hardening.sql        completion only through complete_my_onboarding(); list item limits
 
 tests/_harness.sql       fakes the auth and storage schemas Supabase provides
 tests/assertions.sql     structural rules: RLS, grants, search_path, card data, indexes
-tests/behaviour.sql      78 checks, 28 of them policy tests run as a real member
+tests/behaviour.sql      the behaviour checks, many run as a real member
 tests/replay.sh          applies everything from empty and runs both
 ```
+
+**Numbering.** `0011` is the three-candidates-a-day change on the
+`fix/api-v1-errors` branch; it is not on every branch yet, which is why this
+list jumps from 0010 to 0012. `0013` was never used. `0016` is reserved for
+the scheduling flow (docs/design/scheduling-flow.md). Supabase orders
+migrations by that number and refuses to apply one numbered below a migration
+it has already run, so check open branches for the next free number before
+adding a file.
 
 ## Testing before pushing
 
@@ -27,8 +38,11 @@ supabase/tests/replay.sh
 ```
 
 Recreates a scratch database on a local Postgres, applies every migration in
-order, and then checks the result. It needs a Postgres running locally; set
-`PGHOST_DIR` and `PGPORT` if yours is not on the default socket.
+order, and then checks the result. It needs a Postgres running locally with a
+`postgres` superuser; set `PGHOST_DIR` (a socket directory, or `localhost` for
+TCP) and `PGPORT` if yours is not the default. It exits non-zero if any
+migration, assertion or behaviour check fails — trust the exit code, not only
+the last line.
 
 This exists because `supabase db push` is otherwise the only way to find out
 whether a migration works, and it finds out by running it on the real database.
@@ -176,8 +190,8 @@ would have to handle it.
 
 ## Changing the schema later
 
-Add a new numbered file — `0011_whatever.sql` — rather than editing an existing
-one. A migration that has already run on the production database cannot be
+Add a new numbered file — the next free number, see **Numbering** above —
+rather than editing an existing one. A migration that has already run on the production database cannot be
 edited; it can only be followed by another.
 
 Run `supabase/tests/replay.sh` before `supabase db push`, every time.
