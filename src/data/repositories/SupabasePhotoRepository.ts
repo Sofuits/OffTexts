@@ -1,8 +1,10 @@
-import { MAX_PHOTOS, type Photo, type PhotoId } from '@/domain/entities';
+import type { Photo, PhotoId } from '@/domain/entities';
 import { AppError, attempt, type PhotoRepository, type Result } from '@/domain/repositories';
 import { toPhoto } from '@/data/mappers/photoMapper';
+import { processProfilePhoto } from '@/infrastructure/media';
 import { classifySupabaseError } from '@/infrastructure/supabase/supabaseErrors';
 import type { TypedSupabaseClient } from '@/infrastructure/supabase/supabaseClient';
+import { MAX_PROFILE_PHOTOS, MAX_FILE_SIZE } from '@/shared/utils';
 
 /** The bucket created in migration 0001. Public, 5 MB, images only. */
 const BUCKET = 'profile-photos';
@@ -41,7 +43,21 @@ export class SupabasePhotoRepository implements PhotoRepository {
         .order('sort_order', { ascending: true });
 
       if (error) throw error;
-      return (data ?? []).map(toPhoto);
+
+      const rows = await Promise.all(
+        (data ?? []).map(async (row) => {
+          const url = row.storage_path
+            ? await this.client.storage
+                .from(BUCKET)
+                .createSignedUrl(row.storage_path, 60 * 60)
+                .then((result) => result.data?.signedUrl ?? row.url ?? '')
+            : row.url ?? '';
+
+          return { ...row, url };
+        }),
+      );
+
+      return rows.map(toPhoto);
     }, classifySupabaseError);
   }
 
@@ -49,10 +65,6 @@ export class SupabasePhotoRepository implements PhotoRepository {
     return attempt(async () => {
       const userId = await this.requireUserId();
 
-      // Read the existing rows to pick the next slot. Not `count` on its own:
-      // the slots are 1-6 and a deleted photo is renumbered by `removePhoto`,
-      // so the next free slot is genuinely "one past the highest", and taking
-      // the maximum is the only version of that which survives a gap.
       const { data: existing, error: readError } = await this.client
         .from('photos')
         .select('sort_order')
@@ -63,50 +75,49 @@ export class SupabasePhotoRepository implements PhotoRepository {
       if (readError) throw readError;
 
       const highest = existing?.[0]?.sort_order ?? 0;
-      if (highest >= MAX_PHOTOS) {
+      if (highest >= MAX_PROFILE_PHOTOS) {
         throw new AppError(
           'validation',
-          `You can have ${MAX_PHOTOS} photos. Remove one to add another.`,
+          `You can have ${MAX_PROFILE_PHOTOS} photos. Remove one to add another.`,
           { field: 'photos' },
         );
       }
 
-      // React Native's fetch reads a file:// URI into a Blob. FormData would
-      // also work; Blob keeps this call identical to the web one.
-      const response = await fetch(localUri);
-      const blob = await response.blob();
+      const processed = await processProfilePhoto(localUri);
+      if (processed.fileSize > MAX_FILE_SIZE) {
+        throw new AppError('validation', 'Image is too large. Please choose an image under 10 MB.');
+      }
 
-      const extension = localUri.split('.').pop()?.toLowerCase() ?? 'jpg';
-      // The member's own id as the first path segment is what the storage
-      // policy checks — `(storage.foldername(name))[1] = auth.uid()::text`.
-      const storagePath = `${userId}/${Date.now()}.${extension}`;
+      const blob = await fetch(processed.uri).then((response) => response.blob());
+      const extension = 'jpg';
+      const storagePath = `${userId}/profile/${Date.now()}.${extension}`;
 
-      const { error: uploadError } = await this.client.storage
-        .from(BUCKET)
-        .upload(storagePath, blob, {
-          contentType: blob.type || 'image/jpeg',
-          upsert: false,
-        });
+      const { error: uploadError } = await this.client.storage.from(BUCKET).upload(storagePath, blob, {
+        contentType: processed.mimeType,
+        upsert: false,
+      });
 
       if (uploadError) throw uploadError;
 
-      const { data: publicUrl } = this.client.storage.from(BUCKET).getPublicUrl(storagePath);
+      const { data: signedUrl } = await this.client.storage
+        .from(BUCKET)
+        .createSignedUrl(storagePath, 60 * 60);
 
       const { data, error } = await this.client
         .from('photos')
         .insert({
           member_id: userId,
           storage_path: storagePath,
-          url: publicUrl.publicUrl,
+          url: signedUrl?.signedUrl ?? '',
           sort_order: highest + 1,
-          ...(blob.size ? { bytes: blob.size } : {}),
+          bytes: processed.fileSize,
+          width: processed.width,
+          height: processed.height,
         })
         .select('*')
         .single();
 
       if (error) {
-        // The row is the record; without it the object is unreachable. Removing
-        // it keeps the bucket from filling with files nothing points at.
         await this.client.storage.from(BUCKET).remove([storagePath]);
         throw error;
       }
@@ -116,9 +127,9 @@ export class SupabasePhotoRepository implements PhotoRepository {
         url: data.url,
         storagePath: data.storage_path,
         sortOrder: data.sort_order,
-        // Always `pending` on insert — the column defaults to it and a member
-        // cannot set it, because moderation is not theirs to decide.
         moderation: 'pending' as const,
+        width: processed.width,
+        height: processed.height,
       };
     }, classifySupabaseError);
   }

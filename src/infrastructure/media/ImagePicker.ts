@@ -21,6 +21,8 @@ export type PickedImage = {
   uri: string;
   width: number;
   height: number;
+  mimeType?: string | null;
+  fileSize?: number;
 };
 
 export interface ImagePickerService {
@@ -40,13 +42,21 @@ export interface ImagePickerService {
 export class ExpoImagePicker implements ImagePickerService {
   readonly isAvailable = true;
 
+  private async readFileMetadata(uri: string): Promise<{ mimeType?: string | null; fileSize?: number }> {
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const mimeType = blob.type || null;
+      return { mimeType, fileSize: typeof blob.size === 'number' ? blob.size : undefined };
+    } catch {
+      return {};
+    }
+  }
+
   async pickFromLibrary(): Promise<PickedImage | null> {
     const permission = await ExpoPicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
-      // Thrown rather than returned as null, because the two need different
-      // words on screen: "you cancelled" needs no words at all, and "we cannot
-      // see your photos" needs a sentence pointing at Settings.
       throw new Error(
         permission.canAskAgain
           ? 'Offtexts needs permission to open your photos.'
@@ -56,13 +66,8 @@ export class ExpoImagePicker implements ImagePickerService {
 
     const result = await ExpoPicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      // Square, because every place a photo appears in this app is square or a
-      // circle. Cropping here means the member chooses the crop instead of an
-      // algorithm choosing it for them later.
       allowsEditing: true,
       aspect: [1, 1],
-      // 0.8 rather than 1: the difference is invisible at the sizes we display
-      // and roughly halves what gets uploaded over a phone connection.
       quality: 0.8,
       exif: false,
       base64: false,
@@ -73,7 +78,15 @@ export class ExpoImagePicker implements ImagePickerService {
     const asset = result.assets[0];
     if (!asset) return null;
 
-    return { uri: asset.uri, width: asset.width, height: asset.height };
+    const metadata = await this.readFileMetadata(asset.uri);
+
+    return {
+      uri: asset.uri,
+      width: asset.width ?? 0,
+      height: asset.height ?? 0,
+      mimeType: asset.mimeType ?? metadata.mimeType ?? null,
+      fileSize: metadata.fileSize,
+    };
   }
 }
 

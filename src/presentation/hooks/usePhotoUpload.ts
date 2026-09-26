@@ -2,7 +2,12 @@ import { useCallback, useState } from 'react';
 
 import { useServices } from '@/app/di';
 import type { Photo, PhotoId } from '@/domain/entities';
-import { useAddPhoto, useMyPhotos, useRemovePhoto } from '@/presentation/hooks/queries/usePhotos';
+import { useAddPhoto, useMyPhotos, useRemovePhoto, useSetPhotoOrder } from '@/presentation/hooks/queries/usePhotos';
+import {
+  MAX_PROFILE_PHOTOS,
+  reorderPhotoIds,
+  validateProfilePhotoUpload,
+} from '@/shared/utils';
 
 export type PhotoManager = {
   /** The member's photos in order, including ones still waiting on a moderator. */
@@ -11,6 +16,7 @@ export type PhotoManager = {
   /** Opens the library, uploads what is chosen, and records it. */
   add: () => Promise<void>;
   remove: (id: PhotoId) => Promise<void>;
+  reorder: (fromIndex: number, toIndex: number) => Promise<void>;
   /** True while picking, uploading or deleting. */
   isBusy: boolean;
   /** The last failure, in words a member can act on. Cleared on the next attempt. */
@@ -35,21 +41,25 @@ export function usePhotoUpload(): PhotoManager {
   const query = useMyPhotos();
   const addPhoto = useAddPhoto();
   const removePhoto = useRemovePhoto();
+  const setPhotoOrder = useSetPhotoOrder();
 
   const [pickerError, setPickerError] = useState<string | null>(null);
   const [isPicking, setIsPicking] = useState(false);
 
   const add = useCallback(async (): Promise<void> => {
+    const currentCount = query.data?.length ?? 0;
+    if (currentCount >= MAX_PROFILE_PHOTOS) {
+      setPickerError(`You can upload up to ${MAX_PROFILE_PHOTOS} profile photos.`);
+      return;
+    }
+
     setPickerError(null);
     setIsPicking(true);
 
-    let picked: { uri: string } | null = null;
+    let picked: { uri: string; mimeType?: string | null; fileSize?: number } | null = null;
     try {
       picked = await imagePicker.pickFromLibrary();
     } catch (caught) {
-      // A refused permission arrives here carrying the sentence to show. Only
-      // a message is taken from it — a native module's own wording is not fit
-      // to put in front of a member.
       setPickerError(
         caught instanceof Error
           ? caught.message
@@ -62,13 +72,21 @@ export function usePhotoUpload(): PhotoManager {
 
     if (!picked) return;
 
-    // `mutateAsync` rather than `mutate`, so the caller can await the whole
-    // thing — the onboarding step needs to know when the grid will update.
-    // The rejection is swallowed because the error is already in `error`;
-    // letting it escape would produce an unhandled rejection warning for a
-    // failure that has been handled.
+    const validationError = validateProfilePhotoUpload({
+      mimeType: picked.mimeType,
+      fileSize: picked.fileSize,
+      fileExists: true,
+      currentPhotoCount: currentCount,
+      maximumPhotos: MAX_PROFILE_PHOTOS,
+    });
+
+    if (validationError) {
+      setPickerError(validationError);
+      return;
+    }
+
     await addPhoto.mutateAsync(picked.uri).catch(() => undefined);
-  }, [imagePicker, addPhoto]);
+  }, [imagePicker, addPhoto, query.data?.length]);
 
   const remove = useCallback(
     async (id: PhotoId): Promise<void> => {
@@ -78,13 +96,32 @@ export function usePhotoUpload(): PhotoManager {
     [removePhoto],
   );
 
+  const reorder = useCallback(
+    async (fromIndex: number, toIndex: number): Promise<void> => {
+      const ids = (query.data ?? []).map((photo) => photo.id);
+      if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+      if (fromIndex >= ids.length || toIndex >= ids.length) return;
+
+      const nextIds = reorderPhotoIds(ids, fromIndex, toIndex);
+      setPickerError(null);
+      await setPhotoOrder.mutateAsync(nextIds).catch(() => undefined);
+    },
+    [query.data, setPhotoOrder],
+  );
+
   return {
     photos: query.data ?? [],
     isLoading: query.isPending,
     add,
     remove,
-    isBusy: isPicking || addPhoto.isPending || removePhoto.isPending,
-    error: pickerError ?? addPhoto.error?.message ?? removePhoto.error?.message ?? null,
+    reorder,
+    isBusy: isPicking || addPhoto.isPending || removePhoto.isPending || setPhotoOrder.isPending,
+    error:
+      pickerError ??
+      addPhoto.error?.message ??
+      removePhoto.error?.message ??
+      setPhotoOrder.error?.message ??
+      null,
     canPick: imagePicker.isAvailable,
   };
 }

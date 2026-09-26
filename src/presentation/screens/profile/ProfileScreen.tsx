@@ -173,6 +173,9 @@ export function ProfileScreen({ navigation }: Props): React.JSX.Element {
               onRemove={(id) => {
                 void photos.remove(id);
               }}
+              onReorder={(fromIndex, toIndex) => {
+                void photos.reorder(fromIndex, toIndex);
+              }}
               busy={photos.isBusy}
               canPick={photos.canPick}
             />

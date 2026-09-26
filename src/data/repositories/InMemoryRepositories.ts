@@ -1,7 +1,6 @@
 import {
   averageRating,
   DEFAULT_PREFERENCES,
-  MAX_PHOTOS,
   type AuthState,
   type Candidate,
   type CandidateId,
@@ -49,6 +48,7 @@ import {
   SEED_SESSION,
   SEED_VENUES,
 } from '@/shared/constants/seedData';
+import { MAX_PROFILE_PHOTOS } from '@/shared/utils';
 
 /**
  * Repositories backed by seed data held in memory.
@@ -112,9 +112,12 @@ export class InMemoryPhotoRepository implements PhotoRepository {
   async addPhoto(localUri: string): Promise<Result<Photo>> {
     await delay(600);
 
-    if (this.photos.length >= MAX_PHOTOS) {
+    if (this.photos.length >= MAX_PROFILE_PHOTOS) {
       return failure(
-        new AppError('validation', `You can have ${MAX_PHOTOS} photos. Remove one to add another.`),
+        new AppError(
+          'validation',
+          `You can have ${MAX_PROFILE_PHOTOS} photos. Remove one to add another.`,
+        ),
       );
     }
 

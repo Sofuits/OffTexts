@@ -19,6 +19,7 @@ export type PhotoGridProps = {
   max?: number;
   onAdd: () => void;
   onRemove: (id: PhotoId) => void;
+  onReorder?: (fromIndex: number, toIndex: number) => void;
   /** True while a photo is being picked, uploaded or deleted. Blocks a second tap. */
   busy?: boolean;
   /** False on platforms with no camera roll — the tiles then explain themselves. */
@@ -47,6 +48,7 @@ export function PhotoGrid({
   max = MAX_PHOTOS,
   onAdd,
   onRemove,
+  onReorder,
   busy = false,
   canPick = true,
   style,
@@ -110,6 +112,35 @@ export function PhotoGrid({
               >
                 <Ionicons name="close" size={14} color={theme.colors.textPrimary} />
               </Pressable>
+
+              {onReorder ? (
+                <View style={styles.reorderRow}>
+                  {index > 0 ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Move photo ${index + 1} left`}
+                      onPress={() => onReorder(index, index - 1)}
+                      disabled={busy}
+                      style={[styles.reorderButton, { backgroundColor: theme.colors.background }]}
+                      testID={`button-move-left-${index}`}
+                    >
+                      <Ionicons name="chevron-back" size={12} color={theme.colors.textPrimary} />
+                    </Pressable>
+                  ) : null}
+                  {index < photos.length - 1 ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Move photo ${index + 1} right`}
+                      onPress={() => onReorder(index, index + 1)}
+                      disabled={busy}
+                      style={[styles.reorderButton, { backgroundColor: theme.colors.background }]}
+                      testID={`button-move-right-${index}`}
+                    >
+                      <Ionicons name="chevron-forward" size={12} color={theme.colors.textPrimary} />
+                    </Pressable>
+                  ) : null}
+                </View>
+              ) : null}
 
               {index === 0 ? (
                 <AppText
@@ -197,6 +228,23 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  reorderRow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 6,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 6,
+  },
+  reorderButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
