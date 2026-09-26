@@ -14,7 +14,17 @@ import type { MatchId, MeetId, PersonId } from '@/domain/entities';
  * screen call `navigation.navigate('EditProfile')` — a route that lives on the
  * parent stack, not in the tabs.
  */
-
+export type AvailabilityFlowParamList = {
+  AvailabilityStart: undefined;
+  AvailabilitySelectDates: undefined;
+  AvailabilitySharedDates: undefined;
+  AvailabilitySelectTime: { selectedDate: string };
+  AvailabilitySharedTimes: { selectedDate: string };
+  AvailabilityConfirmed: {
+    selectedDate: string;
+    selectedTime: string;
+  };
+};
 export type RootStackParamList = {
   /** The tab navigator, as a single route on the stack. */
   RootTabs: NavigatorScreenParams<BottomTabParamList> | undefined;
@@ -38,17 +48,15 @@ export type RootStackParamList = {
   /** Booking a table. Only reachable with a match, because only a match permits it. */
   RequestMeet: { matchId: MatchId; personName: string };
   MeetDetails: { meetId: MeetId };
-  RatingsReviews: { meetId: MeetId; personName: string };
-  /**
-   * Everybody, rather than today's three.
-   *
-   * Deliberately not a tab. The product is three people a day, chosen; a
-   * browsable feed sitting beside it would undo that the first time somebody
-   * ran out. It is reachable from the profile screen, which is where a member
-   * goes when they want to do something other than the main loop.
-   */
-  Browse: undefined;
-};
+  RatingsReviews: { meetId: MeetId; personName: string }; AvailabilityStart: undefined;
+  AvailabilitySelectDates: undefined;
+  AvailabilitySharedDates: undefined;
+  AvailabilitySelectTime: { selectedDate: string };
+  AvailabilitySharedTimes: { selectedDate: string };
+  AvailabilityConfirmed: {
+    selectedDate: string;
+    selectedTime: string;
+};};
 
 export type BottomTabParamList = {
   Profile: undefined;

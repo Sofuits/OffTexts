@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { Pressable, StyleSheet, Text } from 'react-native';
 
 import {
   AppText,
@@ -71,6 +72,16 @@ export function ScheduledMeetsScreen({ navigation }: Props): React.JSX.Element {
         showLogo
       />
       <Spacer size={24} />
+      <Pressable
+  onPress={() => navigation.navigate('AvailabilityStart')}
+  style={styles.availabilityButton}
+>
+  <Text style={styles.availabilityButtonText}>
+    Plan a meet
+  </Text>
+</Pressable>
+
+<Spacer size={24} />
 
       <SectionHeader title="Matches" subtitle="You both said yes. Nobody else can see this." />
       <Spacer size={12} />
@@ -153,3 +164,18 @@ export function ScheduledMeetsScreen({ navigation }: Props): React.JSX.Element {
     </ScreenContainer>
   );
 }
+const styles = StyleSheet.create({
+  availabilityButton: {
+    minHeight: 52,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#496653',
+  },
+
+  availabilityButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
