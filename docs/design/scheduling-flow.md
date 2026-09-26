@@ -21,6 +21,9 @@ meeting exists only when both land on the same slot. That needs per-session,
 per-member, per-date and per-time state that both members can read, and
 nothing in the schema holds that today. It is a migration, not a restyle.
 
+**The members negotiate the day and the time. They do not choose the café:
+the server assigns it** (§5).
+
 ### The table that looks like it would help, and does not
 
 `public.availability` exists, but it holds **recurring weekly windows** —
@@ -32,19 +35,20 @@ answers a different question, and conflating the two will break matching.
 
 ## 1. The flow
 
-| #   | Screen              | What it does                                                                                                                                                            |
-| --- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **SchedulingStart** | From a match. Explains the five steps. The mockup puts a heart between the two avatars — use the café cup instead. Offtexts serves four purposes; only one is romantic. |
-| 2   | **SelectDates**     | Month calendar, multi-select, spanning weeks or months. Chips below for what is picked.                                                                                 |
-| 3   | **SharedDates**     | Two-column table, you and them. Green row = both free. Your own column stays editable.                                                                                  |
-| 4   | **ChooseDay**       | Radio list of the overlap only.                                                                                                                                         |
-| 5   | **DayConfirmed**    | Confirmation beat, with a "Change" affordance.                                                                                                                          |
-| 6   | **SelectTimes**     | Slot list for the chosen day, multi-select, the café city's timezone shown. **Only times at which at least one partner café is open** — see §4, `choose_time`.          |
-| 7   | **SharedTimes**     | Same two-column table, for times.                                                                                                                                       |
-| 8   | **ChooseTime**      | Radio list of the overlap.                                                                                                                                              |
-| 8.5 | **ChooseVenue**     | New — not in the mockups. See §5. Every partner café open at the agreed time, by area. One member picks; the other confirms or vetoes once.                             |
-| 9   | **Confirmed**       | The meeting exists. Both members and the admin are notified.                                                                                                            |
-| 10  | **EditScheduling**  | Edit dates · edit times · cancel, until confirmed.                                                                                                                      |
+Exactly the ten mockup steps. There is no café screen.
+
+| #   | Screen              | What it does                                                                                                                                                                            |
+| --- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **SchedulingStart** | From a match. Explains the steps. The mockup puts a heart between the two avatars — use the café cup instead. Offtexts serves four purposes; only one is romantic.                      |
+| 2   | **SelectDates**     | Month calendar, multi-select, spanning weeks or months. Chips below for what is picked.                                                                                                 |
+| 3   | **SharedDates**     | Two-column table, you and them. Green row = both free. Your own column stays editable.                                                                                                  |
+| 4   | **ChooseDay**       | Radio list of the overlap only.                                                                                                                                                         |
+| 5   | **DayConfirmed**    | Confirmation beat, with a "Change" affordance.                                                                                                                                          |
+| 6   | **SelectTimes**     | Slot list for the chosen day, multi-select, the cafés' timezone shown. **Only start times at which at least one partner café is open for the whole meeting and has a free table** (§5). |
+| 7   | **SharedTimes**     | Same two-column table, for times.                                                                                                                                                       |
+| 8   | **ChooseTime**      | Radio list of the overlap. **Choosing confirms the meeting**: the server assigns a café and books it (§4, `choose_time`).                                                               |
+| 9   | **Confirmed**       | The meeting exists. Both members and the admin are notified. Whether this screen names the café is an open decision (§5, §9).                                                           |
+| 10  | **EditScheduling**  | Edit dates · edit times · cancel.                                                                                                                                                       |
 
 Steps 3 and 7 are the same component with different data. Steps 4 and 8 are
 the same component. Build two, use them twice.
@@ -55,7 +59,7 @@ the same component. Build two, use them twice.
 
 ```sql
 create type public.scheduling_stage as enum
-  ('dates', 'times', 'venue', 'confirmed', 'cancelled');
+  ('dates', 'times', 'confirmed', 'cancelled');
 
 create table public.scheduling_sessions (
   id          uuid primary key default gen_random_uuid(),
@@ -65,13 +69,10 @@ create table public.scheduling_sessions (
   chosen_date       date,
   chosen_starts_at  time,
   chosen_ends_at    time,
-  -- Who chose the time. That member picks the café (§5).
-  time_chosen_by    uuid references public.profiles (id) on delete set null,
 
-  -- The café picked, awaiting the other member's confirmation or veto.
+  -- Assigned by choose_time (§5), never chosen by a member. Set together with
+  -- the time and the meeting, in one transaction.
   cafe_id           uuid references public.cafes (id) on delete restrict,
-  -- One veto per session. Once used, the next pick confirms directly.
-  vetoed_cafe_id    uuid references public.cafes (id) on delete set null,
 
   -- Set only on confirmation. The meeting is the output of this negotiation.
   meet_id           uuid references public.meets (id) on delete set null,
@@ -136,19 +137,23 @@ alter table public.cafes
 ```
 
 A `CHECK` cannot query `pg_timezone_names`, so a `before insert or update of
-timezone` trigger rejects a name Postgres does not know. `choose_venue` builds
-the instant as `(chosen_date + chosen_starts_at) at time zone cafes.timezone`.
+timezone` trigger rejects a name Postgres does not know. `choose_time` builds
+the instant from the café it assigns: `(chosen_date + chosen_starts_at) at time
+zone cafes.timezone`.
 
 The members' own timezone is irrelevant: the slot is when the café's doors are
-open. SelectTimes shows the zone as a label (e.g. "IST") and offers no choice.
+open. SelectTimes shows the zone of the city's partner cafés as a label (e.g.
+"IST") and offers no choice. All partner cafés in one city share a zone; an
+assertion should fail if an active café's zone differs from the rest of its
+city, because then "9am" would not mean one thing across the candidates.
 
-### No location columns in v1
+### No location columns
 
-Member location is deferred — see §6. Nothing is added to `profiles`, and
-`profiles` must never gain location columns: its `select` policy lets any
-signed-in member read every verified profile row, and the app reads it with
-`select('*')`. RLS is per row, not per column, so a column there is readable by
-everyone who can see the profile.
+Member location is not part of v1 — see §6. `profiles` must never gain
+location columns: its `select` policy lets any signed-in member read every
+verified profile row, and the app reads it with `select('*')`. RLS is per row,
+not per column, so a column there is readable by everyone who can see the
+profile.
 
 ---
 
@@ -230,7 +235,7 @@ privilege-escalation surface in the project. Every one of them:
 ```sql
 -- The shape every definer function in §4 follows.
 create or replace function api_v1.choose_time(p_session_id uuid, p_starts time)
-returns void
+returns uuid
 language plpgsql
 security definer
 set search_path = ''
@@ -255,7 +260,7 @@ begin
     raise exception 'No such session' using errcode = '42501';
   end if;
 
-  -- … stage and rule checks, then the write …
+  -- … stage and rule checks, the assignment (§5), then the write …
 end;
 $$;
 
@@ -272,9 +277,15 @@ Structural assertions in `supabase/tests/assertions.sql`, behaviour in
   options, grid.
 - A member inside the match cannot write the other's rows.
 - Every definer function refuses a session id from somebody else's match.
-- Confirming the same slot twice — two concurrent `confirm_venue` calls —
-  produces **one** meeting.
-- `reopen_scheduling(…, 'dates')` deletes **both** members' time options.
+- Two concurrent `choose_time` calls on one session produce **one** meeting.
+- **Capacity:** two sessions choosing the same slot when a café has one table
+  left — one gets that café, the other is assigned a different qualifying café
+  or refused with `no_table`. Never two meetings over capacity.
+- `bookable_times` never returns a start time at which no partner café is open
+  for the whole meeting with a free table.
+- `choose_time` refused with `no_table` leaves the session at `times`, with
+  both members' time options intact.
+- `reopen_scheduling` deletes **both** members' time options.
 - **Assertion:** no `security definer` function in `api_v1` is executable by
   `PUBLIC` or `anon`:
 
@@ -322,30 +333,30 @@ is available.
 `set search_path = ''` on all of them. **D** = `security definer`, hardened as
 in §3. **I** = `security invoker`, under RLS.
 
-| Function                                                             |     | Does                                                                                                                                                                                                                           |
-| -------------------------------------------------------------------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `start_scheduling(p_match_id uuid) → uuid`                           | D   | Creates the session, or returns the live one. Refuses if the caller is not in an active match.                                                                                                                                 |
-| `set_date_options(p_session_id uuid, p_dates date[])`                | I   | Replaces the caller's dates in one statement. Only while the stage is `dates`.                                                                                                                                                 |
-| `choose_date(p_session_id uuid, p_date date)`                        | D   | Only if both members marked it. Sets `chosen_date`, stage → `times`.                                                                                                                                                           |
-| `set_time_options(p_session_id uuid, p_starts time[])`               | I   | Replaces the caller's times. Only while the stage is `times`.                                                                                                                                                                  |
-| `choose_time(p_session_id uuid, p_starts time)`                      | D   | Only if both marked it **and at least one active partner café is open for the whole meeting then** (café's ISO weekday via `extract(isodow …)`, its hours, its capacity). Sets the time and `time_chosen_by`, stage → `venue`. |
-| `suggest_venues(p_session_id uuid) → setof …`                        | I   | Every active partner café open for the whole meeting at the agreed date and time with capacity left, excluding `vetoed_cafe_id`, ordered by area then name. No distance.                                                       |
-| `choose_venue(p_session_id uuid, p_cafe_id uuid)`                    | D   | Only the member in `time_chosen_by`. Checks the café is still open and has capacity then. Before a veto: sets `cafe_id`, awaiting the other member. After a veto: confirms directly, as `confirm_venue` does.                  |
-| `confirm_venue(p_session_id uuid)`                                   | D   | Only the other member, only with a café picked. Builds the instant in the café's `timezone`, runs the `request_meeting` logic, writes `meet_id`, stage → `confirmed`, notifies both members and staff.                         |
-| `veto_venue(p_session_id uuid)`                                      | D   | Only the other member, only while `vetoed_cafe_id` is null. Moves `cafe_id` to `vetoed_cafe_id` and clears it; the chooser picks again from the rest.                                                                          |
-| `reopen_scheduling(p_session_id uuid, p_to public.scheduling_stage)` | D   | Step 10. Clears the later choices. To `dates`: clears the chosen date, time and café **and deletes both members' time options**. To `times`: clears the time and café, keeps the time options. Refused once confirmed.         |
-| `cancel_scheduling(p_session_id uuid, p_reason text)`                | D   | Either member. Stage → `cancelled`.                                                                                                                                                                                            |
+| Function                                               |     | Does                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------------------------ | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `start_scheduling(p_match_id uuid) → uuid`             | D   | Creates the session, or returns the live one. Refuses if the caller is not in an active match, or if the two members have no shared city with an active partner café (§5).                                                                                                                                                                                                                        |
+| `set_date_options(p_session_id uuid, p_dates date[])`  | I   | Replaces the caller's dates in one statement. Only while the stage is `dates`.                                                                                                                                                                                                                                                                                                                    |
+| `choose_date(p_session_id uuid, p_date date)`          | D   | Only if both members marked it. Sets `chosen_date`, stage → `times`.                                                                                                                                                                                                                                                                                                                              |
+| `bookable_times(p_session_id uuid) → setof time`       | D   | The start times on `chosen_date` at which at least one partner café in the shared city is open for the whole meeting **and has a free table**. Step 6 offers only these. Definer because capacity counts other members' meetings, which no member can read; it returns start times and nothing else — no café, no count.                                                                          |
+| `set_time_options(p_session_id uuid, p_starts time[])` | I   | Replaces the caller's times. Only while the stage is `times`.                                                                                                                                                                                                                                                                                                                                     |
+| `choose_time(p_session_id uuid, p_starts time) → uuid` | D   | **Terminal.** Only if both members marked the time. Assigns a café by the rules in §5, checking hours and capacity under lock; builds the instant in that café's `timezone`; runs the `request_meeting` logic; sets the time, `cafe_id` and `meet_id`; stage → `confirmed`; notifies both members and staff. Returns the meeting id. If no café qualifies, raises `no_table` and changes nothing. |
+| `reopen_scheduling(p_session_id uuid)`                 | D   | Step 10, "Edit dates". From `times` back to `dates`: clears `chosen_date` **and deletes both members' time options**. Refused once confirmed. ("Edit times" needs no function: at `times`, a member edits their options with `set_time_options`.)                                                                                                                                                 |
+| `cancel_scheduling(p_session_id uuid, p_reason text)`  | D   | Either member. Stage → `cancelled`. If the session was confirmed, cancels its meeting too, so the café's table is released.                                                                                                                                                                                                                                                                       |
 
 `set_date_options` and `set_time_options` stay invoker: they only write the
 caller's own option rows, which RLS already scopes. Everything that writes a
-session, deletes the other member's rows, creates a meeting or notifies
-somebody else is definer, because a member has none of those rights directly.
+session, deletes the other member's rows, reads other members' meetings,
+creates a meeting or notifies somebody else is definer, because a member has
+none of those rights directly.
 
-**Concurrency.** `confirm_venue` holds the session row `for update` from the
-membership check to the end, re-checks `stage = 'venue'` after taking the
-lock, and only then creates the meeting. The second of two simultaneous calls
-waits, sees `confirmed`, and returns the existing `meet_id` rather than
-creating another.
+**Concurrency.** `choose_time` holds the session row `for update` from the
+membership check to the end and re-checks `stage = 'times'` after taking the
+lock; the second of two simultaneous calls on one session waits, sees
+`confirmed`, and returns the existing `meet_id`. Across sessions, the
+assignment locks the candidate café's row (`select … from public.cafes …
+for update`) before counting its meetings at that slot, so two sessions cannot
+both take a café's last table (§5).
 
 Views, both `security_invoker`:
 
@@ -356,64 +367,109 @@ Views, both `security_invoker`:
   compute the intersection from two lists**; that is a correctness problem
   disguised as a UI problem.
 
-Keep `api_v1.request_meeting`. `confirm_venue` uses its logic. The direct-booking
+Keep `api_v1.request_meeting`. `choose_time` uses its logic. The direct-booking
 path stays available for staff and for a future "arrange without negotiating".
 
 ---
 
-## 5. Café selection
+## 5. How the server assigns the café
 
-The mockups have no café step: step 9 confirms the meeting straight after the
-time. A café step has to go somewhere, and making it a third negotiation
-round would triple the back-and-forth for the least contentious choice.
+Members never choose the café. When they agree a time, `choose_time` assigns
+one. There is no café step, so there is **no fallback**: nobody can look at an
+unsuitable café and pick another. Everything below exists because of that.
 
-### The design for v1 — no location
+### Which cafés qualify
 
-After the time is agreed, `suggest_venues` returns **every partner café open
-for the whole meeting at that date and time**, with capacity left, **sorted by
-area, then name**. The member who chose the time picks one. The other member
-sees it and either confirms or **vetoes once**; a veto excludes that café and
-the chooser picks again, and that second pick confirms directly. No third
-round.
+A café qualifies for a session's agreed date and time when all of these hold:
 
-The time step already guaranteed at least one café is open (`choose_time`), so
-this list is never empty unless a café closed or filled up in between — in
-which case the screen says so and offers "Change the time" (reopen to `times`).
+1. **Partner and active.** `public.cafes.status = 'active'` — a business that
+   has agreed to hold a table (see "Where cafés come from").
+2. **In the shared city.** The two members' `profiles.city`, compared
+   case-insensitively after trimming, must be the same, and the café must be in
+   it. A match whose members name different cities has no shared city;
+   `start_scheduling` refuses it with an explanation rather than letting two
+   people negotiate a time no café can host.
+3. **Open for the whole meeting.** The café's `cafe_hours` for that ISO weekday
+   (`extract(isodow …)` of the date, in the café's `timezone`) contain the
+   interval from the start time to the start plus the meeting's duration.
+4. **A free table.** Fewer of its meetings overlap that interval — status
+   `pending` or `confirmed` — than its `concurrent_meet_capacity`.
 
-The app reuses `hoursOn()` and `startTimesOn()` in
-`src/domain/entities/Venue.ts` — already written, already tested — for
-SelectTimes: the slot list is the union of `startTimesOn()` across the city's
-partner cafés on the chosen day, so members are never offered a time nobody
-can host. The server re-checks in `choose_time`; the client list is a
-convenience, not the rule.
+### Capacity is checked when assigning, not only when offering
 
-### Why no location in v1
+`bookable_times` (step 6) applies all four rules, so members are only offered
+times that can be hosted. But it answers for a moment that has passed by the
+time step 8 is tapped: another pair can take the last table in between. So
+`choose_time` applies them again, under lock:
 
-With ten to twenty partner cafés in one city, distance ranking buys very
-little. Members know their own city: a list grouped by area — Baner, Kalyani
-Nagar, Koregaon Park — is something both can judge at a glance. Against that,
-location costs a permission
-prompt, a new table, a leak surface on the most sensitive data the product
-would hold, and most of the open design questions (city-centre coordinates,
-coordinate types, the no-permission fallback, the privacy assertions).
+- It locks the candidate café's row, then counts that café's overlapping
+  meetings, then books. Two sessions racing for the last table serialise on
+  the lock; the second one to arrive sees the table gone.
+- It takes the candidates in the order below and books the first that still
+  qualifies after its lock.
 
-What is lost is automatic fairness: nothing stops the chooser picking a café
-on their own side of town. The veto is the counterweight, and it is cheap.
+Opening hours alone are not enough: a café that is open but full is not a
+place anyone should be sent.
 
-**Revisit when** the catalogue grows past roughly forty cafés, spans more
-than one city, or the veto rate shows members are regularly picking unfairly.
-The design for that is §6, and nothing in v1 makes it harder to add.
+### The order, in v1
+
+Without member location (§6), distance cannot be a factor. Among qualifying
+cafés, `choose_time` takes:
+
+1. the one with the **most free tables** at that slot — it leaves the most
+   room, and spreads meetings rather than filling one café first;
+2. then the one with the **fewest meetings already that day**;
+3. then the **lowest id**, so the result is deterministic and testable.
+
+This is a placeholder rule and knows nothing about where either member is: it
+can send two people who both live in Kharadi to Baner. That is the weakest
+part of assigning without a choice, and it is why distance is an open decision
+(§9), not a closed one. §6 describes how to add it.
+
+### When nothing qualifies
+
+- **At step 6, for the chosen day:** `bookable_times` returns nothing. The
+  screen says no partner café has a table that day and offers "Change date"
+  (`reopen_scheduling`).
+- **At step 8, between offer and choice:** the table went to someone else.
+  `choose_time` raises `no_table`, changes nothing — the session stays at
+  `times`, both members' time options stay — and the screen says that time was
+  just taken and shows the remaining overlap, refreshed from `bookable_times`.
+  If none remains, it offers "Edit times" and "Change date".
+- **Before the negotiation starts:** no shared city, or no active partner café
+  in it. `start_scheduling` refuses, and the match screen says scheduling is
+  not available in that city yet. Two people should not spend five steps
+  agreeing a time the product cannot host.
+
+### When the member learns which café — a decision
+
+**The mockups do not settle this.** No café appears in any of the ten steps;
+step 9 shows the date, the time, the two members and "Both participants and the
+admin have been notified", and nothing about where.
+
+- **On the confirmation screen (step 9).** Honest only if the table is really
+  held at the moment of assignment — that is, if the partner café has agreed to
+  take Offtexts bookings without being asked each time.
+- **Later, with the admin's confirmation.** Needed if staff still contact the
+  café for each booking (§9, question 1): the café can say no, and showing it
+  early would send two people somewhere that has not agreed. Step 9 then says
+  the table is being arranged and the café follows.
+
+Which is right depends on §9's first question, and is **for the product owner
+to decide**. Until it is decided, step 9 must not name a café as booked.
 
 ### Where cafés come from
 
-Two different things, repeatedly conflated. Keep them apart.
+Two different things, repeatedly conflated. Keep them apart. With the server
+assigning cafés, the difference matters more than before: a member no longer
+looks at a café and chooses it — the app sends them.
 
 1. **Partner cafés — `public.cafes`.** Businesses that have agreed to hold a
-   table. This is the only list a member can book from, because the app tells
-   them "We hold the table and tell them — there is nothing to message." That
-   promise is false at any café that has not agreed to it. This list is
-   curated by business development and arrives through the admin portal. It is
-   small, and it should be.
+   table. This is the only list the server may assign from, because the app
+   tells members "We hold the table and tell them — there is nothing to
+   message." That promise is false at any café that has not agreed to it. This
+   list is curated by business development and arrives through the admin
+   portal. It is small, and it should be.
 
 2. **Nearby-café discovery — optional, for a map view only.** If the product
    wants to show what is around, the legitimate sources are:
@@ -424,6 +480,8 @@ Two different things, repeatedly conflated. Keep them apart.
      Caching is restricted: place IDs may be stored indefinitely, most other
      content may not be retained beyond the terms' limit.
 
+   Neither is ever an assignment source.
+
 **Do not scrape Google Maps.** The Google Maps Platform Terms of Service
 prohibit extracting or exporting Maps content for use outside Google's
 services, and that applies equally to a third-party scraping tool. Beyond the
@@ -432,23 +490,56 @@ one arrives at a café that has never heard of Offtexts and has no table held.
 If a scraping approach is proposed, say so and stop rather than implementing
 it.
 
+### Must be resolved before launch: real café names in seed data
+
+`src/shared/constants/seedData.ts` on `main` names real Pune businesses —
+**Pagdandi**, **Vohuman Café** and **The Daily Grind** — with addresses, as the
+in-memory venues and seeded meets. (`src/domain/entities/__tests__/Venue.test.ts`
+and `RequestMeetScreen.test.tsx` use the same names.) They are not in any
+migration, so they never reach the production database; they are what the app
+shows when it runs without Supabase or with `DEV_SKIP_AUTH`, which is every
+demo, screenshot and review build.
+
+With the app assigning venues, that becomes a real-world instruction: a demo
+build will tell two people to meet at Pagdandi, a business that has not agreed
+to hold a table and has never heard of Offtexts. **Replace them with obviously
+fictional names and addresses before launch** — the Supabase demo seed
+(`scripts/seed-demo.mjs`) already does this: every name ends "(demo)" and every
+address says it is not real.
+
 ---
 
-## 6. Location and fairness ranking — designed, not built
+## 6. Location — a server-side input only
 
-Kept here so it can be built later without re-deciding it. **None of this is
-in v1.**
+**Not in v1.** Kept here so it can be added without re-deciding it.
 
-### Ranking
+If distance becomes a factor in assignment, member location comes back in one
+role only: **an input to the assigner.** It is never shown to anyone — not to
+the other member, not to the member themselves as a distance, not in any view,
+and not returned by any function. The only thing that leaves the database is
+the café `choose_time` assigns.
 
-Rank by `max(distance to A, distance to B)` ascending, not by distance from the
-midpoint. Minimising the worst journey is what "fair" means here; a midpoint
-can sit in a place that is a long way from both. Show each member their own
-distance only.
+**This is a better privacy position than the earlier design.** Before, a
+member chose from a list, so the design had to compute each member's distance
+to every café and send the caller theirs; a derived distance was an output,
+and every output is a surface. With assignment, nothing derived from location
+is output at all. What remains is a weak signal in the result itself: the café
+chosen to minimise the longer journey says something, coarsely, about where
+the other member might be. With ~1 km rounding and a dozen or more cafés that
+signal is faint, but it is not zero, and it should be named rather than
+assumed away.
+
+### The rule
+
+Among qualifying cafés (§5), rank by `max(distance to A, distance to B)`
+ascending — minimising the worse journey, which is what "fair" means here; a
+midpoint can sit a long way from both. Break ties with the v1 order (§5). If
+either member has no location, assign by the v1 order alone.
 
 ### Storage
 
-Not on `profiles` — see §2. A separate table, readable only by its owner:
+Not on `profiles` — see §2. A separate table, **written by its owner, read by
+nobody but the assigner**:
 
 ```sql
 create table public.member_locations (
@@ -457,55 +548,58 @@ create table public.member_locations (
   -- Same type as public.cafes.latitude/longitude.
   area_lat   numeric(9, 6) not null check (area_lat = round(area_lat, 2)),
   area_lng   numeric(9, 6) not null check (area_lng = round(area_lng, 2)),
-  area_label text,          -- "Baner", shown to the member only
   updated_at timestamptz not null default now()
 );
--- RLS: select, insert, update, delete where member_id = auth.uid(). Nothing else.
+-- RLS: insert, update, delete where member_id = auth.uid(). NO select policy —
+-- not even for the owner. Only choose_time, a hardened definer function, reads it.
 ```
 
-`suggest_venues` becomes `security definer` (hardened as in §3) to read both
-members' rows, computes haversine distances in SQL — `public.cafes` uses plain
-`numeric` coordinates, not PostGIS, and one extension for one distance
-calculation is not worth the operational surface — and returns only the
-caller's own distance per café.
+No `area_label`: nothing displays the location, so there is nothing to label.
+Distances are haversine in SQL — `public.cafes` uses plain `numeric`
+coordinates, not PostGIS, and one extension for one distance calculation is not
+worth the operational surface.
 
 ### The rules
 
-Members' locations are the most sensitive data this product will hold, and
+Members' locations are the most sensitive data this product would hold, and
 this is a dating app among other things.
 
-- Ask at the point of use, on the venue step, with a plain explanation — not
-  at sign-up, and not as a blocking permission.
-- Store area-level only. Round to roughly 1 km before it ever reaches the
-  database. Precise coordinates are not stored, not logged, and not sent to
-  the server.
-- A member's location is never readable by the other member. Not the
-  coordinates, not the area label, not a derived distance.
-- Distances are computed server-side and only the caller's own distance to
-  each café is returned.
-- Refusing permission must not block booking. Fall back to the v1 list (§5).
-- **Assertion** in `supabase/tests/assertions.sql`: no `api_v1` view selects
-  from `member_locations`, and no column of it is granted to `authenticated`
-  outside its own-row policy. The same class of guard as the card-data
+- Ask at the point of use — when scheduling starts, with a plain explanation
+  ("so we can pick a café that's fair for both of you") — not at sign-up, and
+  never as a blocking permission. Refusing must not block scheduling: that
+  member is assigned by the v1 order.
+- Store area-level only. Round to roughly 1 km on the phone, before it is
+  sent. Precise coordinates are not stored, not logged, and not sent to the
+  server.
+- Readable by no member, including its owner. Nothing in `api_v1` selects
+  from it or returns anything computed from it.
+- **Assertions** in `supabase/tests/assertions.sql`: `member_locations` has no
+  select policy; no `api_v1` view references it; the only function that
+  references it is `choose_time`. The same class of guard as the card-data
   assertion.
 
 ---
 
 ## 7. App layer
 
-- **Domain:** `SchedulingSession`, `DateOption`, `TimeOption`,
-  `SchedulingStage`, `VenueSuggestion` in `domain/entities/Scheduling.ts`. A
+- **Domain:** `SchedulingSession`, `DateOption`, `TimeOption` and
+  `SchedulingStage` in `domain/entities/Scheduling.ts`. A
   `SchedulingRepository` interface with one method per RPC. A use case only if
   a rule lives above the repository — if it is a pass-through, do not create
   one (see `domain/usecases/index.ts`).
-- **Data:** `SupabaseSchedulingRepository`, `InMemorySchedulingRepository`
-  with a fake second member who marks a plausible overlap and confirms the
-  café, so the whole flow is walkable with no backend. Mapper, container
-  wiring. Weekdays from the API are ISO (7 = Sunday); convert as
-  `toVenue` does.
+- **Data:** `SupabaseSchedulingRepository`, and an
+  `InMemorySchedulingRepository` with a fake second member who marks a
+  plausible overlap and an in-memory assigner over the seed venues, so the
+  whole flow is walkable with no backend. Mapper, container wiring. Weekdays
+  from the API are ISO (7 = Sunday); convert as `toVenue` does.
 - **Presentation:** the screens in §1, `useScheduling*` query hooks, and
   invalidation of `queryKeys.matching.matches()` and `queryKeys.meets.all` on
-  confirm.
+  confirm. Step 8 handles `no_table` as described in §5.
+- **Replaces the preview:** `feature/availability-calendar` has steps 1–5 as a
+  placeholder (`DateSharingRepository`, which invents the other member's
+  dates). Phase 2 replaces that repository with `SchedulingRepository`, moves
+  the intersection to `api_v1.scheduling_grid`, and removes the placeholder
+  notice and the production gate.
 - **Replaced:** `RequestMeetScreen.tsx` and its test. Restyle it during the UI
   rebuild so it is not the one ugly screen, but do not invest in it.
 - **Admin portal:** a confirmed meeting needs a staff view. Separate repo.
@@ -526,10 +620,10 @@ stays covered by `--remove` and its self-check.
   so sessions at a seeded café must go first; sessions of matches with seeded
   members cascade with the members.
 - **`--respond`** makes the demo members in a live session mark plausible
-  date and time options, and confirm the café when it is their turn, so the
-  shared grid has something in it without a second phone. A session only
-  exists once a real member starts one, so this is re-run after tapping
-  "start". **Build it only when the flow exists to respond to.**
+  date and time options, so the shared grid has something in it without a
+  second phone. A session only exists once a real member starts one, so this is
+  re-run after tapping "start". **Build it only when the flow exists to respond
+  to.**
 
 ---
 
@@ -543,7 +637,9 @@ stays covered by `--remove` and its self-check.
 4. Screens, against the in-memory repository, walkable end to end with no
    backend.
 5. Supabase repository + container wiring.
-6. Venue step: the area-sorted list, choose, confirm, veto once.
+6. Assignment: `bookable_times`, `choose_time`'s assignment under the capacity
+   lock, and every "nothing qualifies" path in §5, with the capacity-race
+   test.
 7. Seed `--pair` and `--respond`, then two-device testing.
 
 Steps 1–6 are testable on one device. Step 7 is what needs two people.
@@ -552,14 +648,25 @@ Steps 1–6 are testable on one device. Step 7 is what needs two people.
 
 ## 9. Still open — decide before step 6
 
-1. **Does the admin still book the table once members have chosen the café?**
-   The mockups say "both participants and the admin have been notified", which
+1. **Does the admin still book the table once the café is assigned?** The
+   mockups say "both participants and the admin have been notified", which
    suggests staff act afterwards. If so, `meets.status` stays `pending` until
    staff confirm, and the app must say so rather than implying a held table.
-2. **Expiry.** A negotiation nobody finishes should not sit open forever.
+2. **When does the member learn which café?** On the confirmation screen, or
+   later with the admin's confirmation. The mockups do not show a café
+   anywhere; the answer depends on question 1. See §5.
+3. **Is distance an assignment input at launch?** Without it, the v1 order can
+   send two people across the city to a café far from both of them, and they
+   have no way to choose another. §6 is the design if the answer is yes.
+4. **Expiry.** A negotiation nobody finishes should not sit open forever.
    Recommend 14 days, then auto-cancel with a notification.
-3. **Café sourcing (§5).** The curated partner list is not optional. Whether to
-   add OSM or Places discovery on top is a product call.
+5. **Café discovery (§5).** The curated partner list is not optional and is
+   the only assignment source. Whether to add OSM or Places discovery for a
+   map view is a product call.
 
-Decided since the first draft: the timezone is the café's (§2); member
-location is deferred to §6, with the v1 venue step working without it (§5).
+**Must be resolved before launch, not a decision:** the real Pune business
+names in `src/shared/constants/seedData.ts` (§5).
+
+Decided: the timezone is the café's (§2). The café is assigned by the server,
+not chosen (§5). Member location, if it comes, is a server-side input only and
+is never shown (§6).
