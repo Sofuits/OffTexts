@@ -1,5 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import {
   AppText,
@@ -7,35 +8,61 @@ import {
   Badge,
   Button,
   OfflineBanner,
+  PhotoGrid,
   QueryBoundary,
   ScreenContainer,
   ScreenHeader,
   SectionHeader,
   Spacer,
 } from '@/presentation/components';
-import { MEET_INTENT_LABELS } from '@/domain/entities';
+import {
+  GENDER_PLURAL_LABELS,
+  MEET_INTENT_LABELS,
+  moderationSummary,
+  type Person,
+  type Preferences,
+} from '@/domain/entities';
 import { useUseCases } from '@/app/di';
-import { useMyProfile } from '@/presentation/hooks';
+import { useMyPreferences, useMyProfile, usePhotoUpload } from '@/presentation/hooks';
 import { useTheme } from '@/presentation/hooks/useTheme';
 import type { BottomTabScreenPropsFor } from '@/app/navigation/types';
+import { toSentenceList } from '@/shared/utils/helpers';
 
 type Props = BottomTabScreenPropsFor<'Profile'>;
 
-const VERIFICATION_TONE = {
-  verified: 'success',
-  pending: 'warning',
-  rejected: 'danger',
-  unverified: 'textSecondary',
+const VERIFICATION = {
+  verified: { tone: 'success', label: 'ID verified' },
+  pending: { tone: 'warning', label: 'Being checked' },
+  rejected: { tone: 'danger', label: 'Needs another look' },
+  unverified: { tone: 'textSecondary', label: 'Not verified yet' },
 } as const;
 
-/** Tab 1 — the signed-in member's own profile. */
+/**
+ * Tab 1 — the member's own profile.
+ *
+ * Two things here that a profile screen usually gets wrong.
+ *
+ * The photos are the member's OWN rows, not `person.photoUrls`. That array is
+ * the approved subset everybody else sees, so a photo uploaded ten minutes ago
+ * is not in it — reading from it would mean a member uploads a photo and it
+ * appears to vanish. `useMyPhotos()` returns pending and rejected ones too, and
+ * the grid marks them.
+ *
+ * The preferences are shown in a sentence rather than as a row of toggles,
+ * because the useful question is "who am I being shown" and a list of fields
+ * does not answer it. They are read-only here; changing them belongs in the
+ * editor, where a change can be saved as one thing.
+ */
 export function ProfileScreen({ navigation }: Props): React.JSX.Element {
   const theme = useTheme();
   const profile = useMyProfile();
+  const preferences = useMyPreferences();
+  const photos = usePhotoUpload();
   const { signOut } = useUseCases();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const goToEdit = useCallback(() => navigation.navigate('EditProfile'), [navigation]);
+  const goToBrowse = useCallback(() => navigation.navigate('Browse'), [navigation]);
 
   /**
    * Signing out does not navigate. The auth subscription changes the state and
@@ -55,6 +82,8 @@ export function ProfileScreen({ navigation }: Props): React.JSX.Element {
       },
     ]);
   }, [signOut]);
+
+  const photoNotice = moderationSummary(photos.photos);
 
   return (
     <ScreenContainer testID="screen-profile">
@@ -82,18 +111,44 @@ export function ProfileScreen({ navigation }: Props): React.JSX.Element {
                 },
               ]}
             >
-              <Avatar name={person.name} uri={person.photoUrls[0]} size={88} />
+              <Avatar
+                name={person.name}
+                uri={photos.photos[0]?.url ?? person.photoUrls[0]}
+                size={88}
+              />
               <Spacer size={16} />
-              <AppText variant="subheading">{person.name}</AppText>
+              <AppText variant="subheading">
+                {person.age ? `${person.name}, ${person.age}` : person.name}
+              </AppText>
               <AppText variant="body" color="textSecondary" align="center">
                 {person.city}
               </AppText>
+              {person.headline ? (
+                <AppText
+                  variant="body"
+                  color="textSecondary"
+                  align="center"
+                  style={{ marginTop: theme.spacing[8] }}
+                >
+                  {person.headline}
+                </AppText>
+              ) : null}
 
-              <View style={[styles.tags, { marginTop: theme.spacing[16], gap: theme.spacing[8] }]}>
-                {person.intents.map((intent) => (
-                  <Badge key={intent} label={MEET_INTENT_LABELS[intent]} tone="primary" />
-                ))}
-              </View>
+              <Spacer size={16} />
+              <Badge
+                label={VERIFICATION[person.verification].label}
+                tone={VERIFICATION[person.verification].tone}
+              />
+
+              {person.intents.length > 0 ? (
+                <View
+                  style={[styles.tags, { marginTop: theme.spacing[16], gap: theme.spacing[8] }]}
+                >
+                  {person.intents.map((intent) => (
+                    <Badge key={intent} label={MEET_INTENT_LABELS[intent]} tone="primary" />
+                  ))}
+                </View>
+              ) : null}
 
               <Spacer size={20} />
               <Button
@@ -105,85 +160,107 @@ export function ProfileScreen({ navigation }: Props): React.JSX.Element {
             </View>
 
             <Spacer size={32} />
-            <SectionHeader title="Photos" subtitle="Up to six, shown in this order" />
+            <SectionHeader
+              title="Photos"
+              subtitle="The first one is your avatar everywhere in the app"
+            />
             <Spacer size={12} />
-            <View style={[styles.photoRow, { gap: theme.spacing[12] }]}>
-              {[0, 1, 2].map((index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.photoTile,
-                    {
-                      borderRadius: theme.radii.md,
-                      backgroundColor: theme.colors.inset,
-                      borderColor: theme.colors.border,
-                    },
-                  ]}
-                >
-                  <AppText variant="caption" color="textDisabled">
-                    {index + 1}
-                  </AppText>
-                </View>
-              ))}
-            </View>
+            <PhotoGrid
+              photos={photos.photos}
+              onAdd={() => {
+                void photos.add();
+              }}
+              onRemove={(id) => {
+                void photos.remove(id);
+              }}
+              busy={photos.isBusy}
+              canPick={photos.canPick}
+            />
+            {photos.error ? (
+              <>
+                <Spacer size={12} />
+                <AppText variant="caption" color="danger" testID="profile-photo-error">
+                  {photos.error}
+                </AppText>
+              </>
+            ) : photoNotice ? (
+              <>
+                <Spacer size={12} />
+                <AppText variant="caption" color="textSecondary">
+                  {photoNotice}
+                </AppText>
+              </>
+            ) : null}
 
             <Spacer size={32} />
-            <SectionHeader title="Personal details" />
-            <Spacer size={8} />
-            <View
-              style={[
-                styles.detailCard,
+            <SectionHeader title="Who you see" subtitle="Nobody else is told any of this" />
+            <Spacer size={12} />
+            <QueryBoundary
+              isLoading={preferences.isPending}
+              error={preferences.error}
+              data={preferences.data}
+              onRetry={preferences.refetch}
+              isEmpty={() => false}
+            >
+              {(prefs) => <PreferenceSummary preferences={prefs} person={person} />}
+            </QueryBoundary>
+
+            <Spacer size={32} />
+            <SectionHeader title="About you" />
+            <Spacer size={12} />
+            {person.bio ? (
+              <AppText variant="body" color="textSecondary">
+                {person.bio}
+              </AppText>
+            ) : (
+              <AppText variant="body" color="textDisabled">
+                Nothing here yet. A few lines helps more than another photo.
+              </AppText>
+            )}
+
+            {person.interests.length > 0 ? (
+              <>
+                <Spacer size={16} />
+                <View style={[styles.tagsLeft, { gap: theme.spacing[8] }]}>
+                  {person.interests.map((interest) => (
+                    <Badge key={interest} label={interest} />
+                  ))}
+                </View>
+              </>
+            ) : null}
+
+            <Spacer size={32} />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Browse everyone else"
+              accessibilityHint="Opens a list of members outside today's three"
+              onPress={goToBrowse}
+              style={({ pressed }) => [
+                styles.linkRow,
                 {
                   backgroundColor: theme.colors.card,
                   borderRadius: theme.radii.lg,
                   borderColor: theme.colors.border,
-                  paddingHorizontal: theme.spacing[16],
+                  padding: theme.spacing[16],
+                  gap: theme.spacing[12],
                 },
+                pressed && styles.pressed,
               ]}
+              testID="link-browse"
             >
-              {(
-                [
-                  ['Name', person.name],
-                  ['City', person.city],
-                  ['Headline', person.headline],
-                ] as const
-              ).map(([label, value], index) => (
-                <View
-                  key={label}
-                  style={[
-                    styles.detailRow,
-                    {
-                      paddingVertical: theme.spacing[16],
-                      borderTopWidth: index === 0 ? 0 : StyleSheet.hairlineWidth,
-                      borderTopColor: theme.colors.border,
-                    },
-                  ]}
+              <Ionicons name="people-outline" size={22} color={theme.colors.primary} />
+              <View style={styles.grow}>
+                <AppText variant="bodyStrong">Browse everyone else</AppText>
+                <AppText
+                  variant="caption"
+                  color="textSecondary"
+                  style={{ marginTop: theme.spacing[2] }}
                 >
-                  <AppText variant="label" color="textSecondary">
-                    {label}
-                  </AppText>
-                  <AppText variant="body" style={styles.detailValue}>
-                    {value}
-                  </AppText>
-                </View>
-              ))}
-
-              <View
-                style={[
-                  styles.detailRow,
-                  {
-                    paddingVertical: theme.spacing[16],
-                    borderTopWidth: StyleSheet.hairlineWidth,
-                    borderTopColor: theme.colors.border,
-                  },
-                ]}
-              >
-                <AppText variant="label" color="textSecondary">
-                  Verification
+                  Have a look around. Liking still only happens in Today.
                 </AppText>
-                <Badge label={person.verification} tone={VERIFICATION_TONE[person.verification]} />
               </View>
-            </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.colors.textDisabled} />
+            </Pressable>
 
             <Spacer size={32} />
             <Button
@@ -201,23 +278,98 @@ export function ProfileScreen({ navigation }: Props): React.JSX.Element {
   );
 }
 
+/**
+ * The preferences, as sentences.
+ *
+ * "Ages 24 to 38, in Pune" is read in one glance; `ageMin: 24, ageMax: 38,
+ * cities: ["Pune"]` is three fields to assemble in your head. An empty array
+ * means "no preference" everywhere in this product (see `Preferences`), so the
+ * sentence has to say that in words rather than showing nothing.
+ */
+function PreferenceSummary({
+  preferences,
+  person,
+}: {
+  preferences: Preferences;
+  person: Person;
+}): React.JSX.Element {
+  const theme = useTheme();
+
+  const genders =
+    preferences.interestedIn.length === 0
+      ? 'Anyone'
+      : toSentenceList(
+          preferences.interestedIn.map(
+            (gender) =>
+              GENDER_PLURAL_LABELS[gender as keyof typeof GENDER_PLURAL_LABELS] ?? 'Everyone else',
+          ),
+        );
+
+  const purposes =
+    preferences.intents.length === 0
+      ? 'anything'
+      : toSentenceList(
+          preferences.intents.map((intent) => MEET_INTENT_LABELS[intent].toLowerCase()),
+        );
+
+  const cities = preferences.cities.length === 0 ? person.city : toSentenceList(preferences.cities);
+
+  const rows: [keyof typeof Ionicons.glyphMap, string][] = [
+    ['people-outline', genders],
+    ['sparkles-outline', `Here for ${purposes}`],
+    ['calendar-outline', `Ages ${preferences.ageMin} to ${preferences.ageMax}`],
+    ['location-outline', `In ${cities}`],
+    [
+      preferences.pushEnabled ? 'notifications-outline' : 'notifications-off-outline',
+      preferences.pushEnabled ? 'Notifications on' : 'Notifications off',
+    ],
+  ];
+
+  return (
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.colors.card,
+          borderRadius: theme.radii.lg,
+          borderColor: theme.colors.border,
+          paddingHorizontal: theme.spacing[16],
+        },
+      ]}
+    >
+      {rows.map(([icon, text], index) => (
+        <View
+          key={text}
+          style={[
+            styles.prefRow,
+            {
+              paddingVertical: theme.spacing[12],
+              gap: theme.spacing[12],
+              borderTopWidth: index === 0 ? 0 : StyleSheet.hairlineWidth,
+              borderTopColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Ionicons name={icon} size={18} color={theme.colors.textSecondary} />
+          <AppText variant="body" style={styles.grow}>
+            {text}
+          </AppText>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   hero: { alignItems: 'center', borderWidth: StyleSheet.hairlineWidth },
+  // Centred in the hero, where the whole card is centred.
   tags: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' },
-  photoRow: { flexDirection: 'row' },
-  photoTile: {
-    flex: 1,
-    aspectRatio: 1,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  detailCard: { borderWidth: StyleSheet.hairlineWidth },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 16,
-  },
-  detailValue: { flexShrink: 1, textAlign: 'right' },
+  // Left-aligned in the body, where everything else starts at the margin —
+  // centred tags under left-aligned prose read as a mistake.
+  tagsLeft: { flexDirection: 'row', flexWrap: 'wrap' },
+  card: { borderWidth: StyleSheet.hairlineWidth },
+  prefRow: { flexDirection: 'row', alignItems: 'center' },
+  linkRow: { flexDirection: 'row', alignItems: 'center', borderWidth: StyleSheet.hairlineWidth },
+  grow: { flex: 1 },
+  pressed: { opacity: 0.85 },
 });

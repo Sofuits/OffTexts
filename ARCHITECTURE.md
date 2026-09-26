@@ -250,7 +250,7 @@ AsyncStorage, which is readable on a rooted device.
 npm test
 ```
 
-31 tests, no network, no mocking framework, about 3 seconds.
+113 tests, no network, no mocking framework, about ten seconds.
 
 The one worth reading is
 `src/presentation/screens/__tests__/DiscoverScreen.test.tsx`. It renders the

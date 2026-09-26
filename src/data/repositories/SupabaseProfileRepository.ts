@@ -109,33 +109,6 @@ export class SupabaseProfileRepository implements ProfileRepository {
     return result;
   }
 
-  async uploadPhoto(localUri: string): Promise<Result<string>> {
-    return attempt(async () => {
-      const userId = await this.currentUserId();
-      if (!userId) throw new AppError('unauthenticated', 'You are not signed in.');
-
-      // React Native's fetch can read a file:// URI into a Blob. FormData would
-      // also work; Blob keeps the Supabase call the same as it is on web.
-      const response = await fetch(localUri);
-      const blob = await response.blob();
-
-      const extension = localUri.split('.').pop()?.toLowerCase() ?? 'jpg';
-      const path = `${userId}/${Date.now()}.${extension}`;
-
-      const { error } = await this.client.storage
-        .from('profile-photos')
-        .upload(path, blob, { contentType: blob.type || 'image/jpeg', upsert: false });
-
-      if (error) throw error;
-
-      // A public bucket gives a stable URL. If the bucket is made private, this
-      // becomes createSignedUrl and the URL expires — which is a repository
-      // change only, because callers just receive a string.
-      const { data } = this.client.storage.from('profile-photos').getPublicUrl(path);
-      return data.publicUrl;
-    }, classifySupabaseError);
-  }
-
   /** Not on the interface. Called on sign-out to drop the cached profile. */
   async clearCache(): Promise<Result<void>> {
     await this.cache.clear();

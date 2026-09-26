@@ -11,6 +11,54 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
 
+/**
+ * Icons load their font asynchronously and call setState when it arrives.
+ *
+ * Under Jest that resolves after the test has finished, so every screen with an
+ * icon on it produces "An update to Icon inside a test was not wrapped in
+ * act(...)" — dozens of them, which is how a real warning goes unnoticed.
+ *
+ * The replacement forwards every prop to a View, so an icon carrying an
+ * `accessibilityLabel` is still queryable. `glyphMap` is only ever used as a
+ * TypeScript type (`keyof typeof Ionicons.glyphMap`), which is erased before
+ * this mock exists, so an empty object is enough.
+ */
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  const iconSet = (displayName) => {
+    const Icon = (props) => React.createElement(View, props);
+    Icon.displayName = displayName;
+    Icon.glyphMap = {};
+    return Icon;
+  };
+
+  return {
+    Ionicons: iconSet('Ionicons'),
+    MaterialIcons: iconSet('MaterialIcons'),
+    MaterialCommunityIcons: iconSet('MaterialCommunityIcons'),
+    Feather: iconSet('Feather'),
+    FontAwesome: iconSet('FontAwesome'),
+  };
+});
+
+/**
+ * The camera roll does not exist under Node.
+ *
+ * `src/app/di/container.ts` constructs an `ExpoImagePicker` in the production
+ * branch, so the module is imported the moment the container file is loaded —
+ * even by a test that wires `UnavailableImagePicker` instead. The mock stops
+ * that import throwing; nothing calls through it, because `createTestContainer`
+ * injects the unavailable picker.
+ */
+jest.mock('expo-image-picker', () => ({
+  requestMediaLibraryPermissionsAsync: jest
+    .fn()
+    .mockResolvedValue({ granted: false, canAskAgain: true }),
+  launchImageLibraryAsync: jest.fn().mockResolvedValue({ canceled: true, assets: null }),
+}));
+
 jest.mock('expo-secure-store', () => ({
   isAvailableAsync: jest.fn().mockResolvedValue(false),
   getItemAsync: jest.fn().mockResolvedValue(null),

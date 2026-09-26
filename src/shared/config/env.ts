@@ -22,12 +22,24 @@ type Extra = {
   enableGoogleAuth?: string | boolean;
   sentryDsn?: string;
   enableAnalytics?: string | boolean;
+  authResendCooldownSeconds?: string;
+  authPasswordRequirements?: string;
+  demoEmail?: string;
+  demoPassword?: string;
 };
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Extra;
 
 const readString = (value: string | undefined): string =>
   typeof value === 'string' ? value.trim() : '';
+
+/** A whole number of seconds above zero, or null — never a made-up default. */
+const readPositiveSeconds = (value: string | undefined): number | null => {
+  const text = readString(value);
+  if (!/^\d+$/.test(text)) return null;
+  const seconds = Number(text);
+  return seconds > 0 ? seconds : null;
+};
 
 const readBoolean = (value: string | boolean | undefined, fallback: boolean): boolean => {
   if (typeof value === 'boolean') return value;
@@ -43,6 +55,33 @@ const environment = (readString(extra.environment) || 'development') as AppEnvir
 const supabaseUrl = readString(extra.supabaseUrl);
 const supabaseAnonKey = readString(extra.supabaseAnonKey);
 
+const hasSupabase = supabaseUrl.length > 0 && supabaseAnonKey.length > 0;
+
+/**
+ * Credentials for a one-tap demo sign-in. Non-production only.
+ *
+ * READ THIS BEFORE SETTING THEM.
+ *
+ * Everything on `extra` ships inside the bundle. A password here is readable
+ * by anyone who downloads the app, so it may only ever be a **throwaway test
+ * account created for this purpose** — never a real member's, never an
+ * account with staff access, and never one whose password is used anywhere
+ * else. Treat the value as public from the moment it is written down.
+ *
+ * It exists because sign-in is somebody else's piece of work and the rest of
+ * the app is behind it. Everything past the auth gate needs a real session —
+ * every Row Level Security policy on the database requires an authenticated
+ * caller — so without this, reviewing the screens means creating an account by
+ * hand first.
+ *
+ * `DEV_SKIP_AUTH` is NOT the same thing and is not a substitute. It forces the
+ * in-memory repositories, so nothing is read from or written to Supabase and
+ * no policy is ever exercised. This signs in properly: real session, real RLS,
+ * real rows. That is the point of it.
+ */
+const demoEmail = readString(extra.demoEmail);
+const demoPassword = readString(extra.demoPassword);
+
 export const env = {
   supabaseUrl,
   supabaseAnonKey,
@@ -53,7 +92,7 @@ export const env = {
    * so a developer can clone, `npm install`, `npm start` and have a working app
    * with no backend account at all. Nothing else in the codebase branches on it.
    */
-  hasSupabase: supabaseUrl.length > 0 && supabaseAnonKey.length > 0,
+  hasSupabase,
 
   /**
    * Start the app already signed in, against in-memory data. Development only.
@@ -90,9 +129,48 @@ export const env = {
    */
   enableGoogleAuth: readBoolean(extra.enableGoogleAuth, false),
 
+  demoEmail,
+  demoPassword,
+  /**
+   * Whether to offer the demo button.
+   *
+   * Three conditions, all of them load-bearing. `environment !== 'production'`
+   * is the one that matters most: a forgotten `.env` must not be able to ship
+   * an app with a sign-in shortcut on its first screen, and a flag that can
+   * only be wrong in development is worth having where one that can be wrong in
+   * production is a liability. Supabase has to be configured because the whole
+   * point is a real session. And both halves of the credential have to be
+   * present, because half of one is a button that fails on tap.
+   */
+  hasDemoSignIn:
+    environment !== 'production' && hasSupabase && demoEmail.length > 0 && demoPassword.length > 0,
+
   sentryDsn: readString(extra.sentryDsn),
   environment,
   enableAnalytics: readBoolean(extra.enableAnalytics, false),
+
+  /**
+   * How long the "Send a new code" button waits after an email goes out.
+   *
+   * It mirrors the Supabase Dashboard's per-member minimum interval between
+   * emails, and is config rather than a constant because that figure lives in
+   * the dashboard, not in this repository — a number typed in here would be a
+   * guess the day someone changes the setting.
+   *
+   * Null when unset. The screen then shows no countdown of its own and waits
+   * only when Supabase refuses a resend, for as long as Supabase says.
+   */
+  authResendCooldownSeconds: readPositiveSeconds(extra.authResendCooldownSeconds),
+
+  /**
+   * Which characters a password must contain, exactly as the Supabase
+   * Dashboard is set: Authentication → Sign In / Providers → Email → Password
+   * requirements. Blank means "no required characters".
+   *
+   * Kept as the raw string; the composition root checks it against the values
+   * Supabase allows, so a typo is reported rather than silently ignored.
+   */
+  authPasswordRequirements: readString(extra.authPasswordRequirements),
   isDevelopment: environment === 'development',
   isProduction: environment === 'production',
 } as const;

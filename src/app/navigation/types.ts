@@ -2,7 +2,7 @@ import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps, NavigatorScreenParams } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import type { MeetId, PersonId } from '@/domain/entities';
+import type { MatchId, MeetId, PersonId } from '@/domain/entities';
 
 /**
  * Navigation types.
@@ -36,7 +36,17 @@ export type RootStackParamList = {
    */
   SignIn: undefined;
   EditProfile: undefined;
-  PersonProfile: { personId: PersonId; personName: string };
+  /**
+   * `matchId` is present only when arriving from a match.
+   *
+   * It is what decides whether the "arrange a meet" button appears, and it is
+   * passed rather than looked up because the screen has no way to ask "am I
+   * matched with this person" — the database will not answer that question for
+   * anyone but through the match itself.
+   */
+  PersonProfile: { personId: PersonId; personName: string; matchId?: MatchId };
+  /** Booking a table. Only reachable with a match, because only a match permits it. */
+  RequestMeet: { matchId: MatchId; personName: string };
   MeetDetails: { meetId: MeetId };
   RatingsReviews: { meetId: MeetId; personName: string }; AvailabilityStart: undefined;
   AvailabilitySelectDates: undefined;
@@ -50,7 +60,8 @@ export type RootStackParamList = {
 
 export type BottomTabParamList = {
   Profile: undefined;
-  Discover: undefined;
+  /** Today's three. The landing screen. */
+  Today: undefined;
   ScheduledMeets: undefined;
 };
 

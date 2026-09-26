@@ -1,48 +1,80 @@
-import type { Meet } from '@/domain/entities';
+import type { MeetId } from '@/domain/entities';
 import {
   AppError,
   failure,
   type MeetRepository,
-  type MeetRequest,
+  type MeetingRequest,
   type Result,
 } from '@/domain/repositories';
 
 /**
- * Requests a meet with someone, after checking the request makes sense.
+ * Books a table, after checking the booking makes sense.
  *
- * A slot in the past is the failure worth guarding: the picker defaults to
- * today, a member fills in the form slowly, and by the time they submit, the
- * earliest option has passed. Catching it here gives a clear message instead of
- * a confusing server rejection.
+ * The rules here are the ones the member should learn about before the round
+ * trip rather than after it. Each is also enforced in the database — a client
+ * check is a courtesy, never a control — but a plpgsql error string is not
+ * something to put in front of somebody who just picked a Thursday.
+ *
+ * The one worth having is the time check. The picker offers today, a member
+ * fills in the form slowly, and by the time they tap Confirm the 4pm slot has
+ * passed. Without this they get "A meeting cannot be scheduled in the past"
+ * from Postgres and have to work out which part of the form it means.
  */
 export class RequestMeet {
-  static readonly MIN_SLOTS = 1;
-  static readonly MAX_SLOTS = 5;
+  /** What the database allows. Mirrors the CHECK on `meets.duration_minutes`. */
+  static readonly MIN_DURATION_MINUTES = 15;
+  static readonly MAX_DURATION_MINUTES = 480;
+  static readonly DEFAULT_DURATION_MINUTES = 60;
+
+  /**
+   * Nobody should be able to book a table for two minutes from now. The café
+   * has to know, and the other member has to be able to get there.
+   */
+  static readonly MIN_NOTICE_MINUTES = 60;
 
   constructor(private readonly meets: MeetRepository) {}
 
-  async execute(request: MeetRequest, now: Date = new Date()): Promise<Result<Meet>> {
-    const future = request.availableSlots.filter((slot) => slot.getTime() > now.getTime());
-
-    if (future.length < RequestMeet.MIN_SLOTS) {
+  async execute(request: MeetingRequest, now: Date = new Date()): Promise<Result<MeetId>> {
+    if (!request.matchId) {
       return failure(
-        new AppError('validation', 'Choose at least one time in the future.', {
-          field: 'availableSlots',
-        }),
+        new AppError('validation', 'That match is no longer available.', { field: 'matchId' }),
       );
     }
 
-    if (future.length > RequestMeet.MAX_SLOTS) {
+    if (!request.venueId) {
+      return failure(new AppError('validation', 'Pick a café first.', { field: 'venueId' }));
+    }
+
+    const when = request.scheduledFor.getTime();
+    if (Number.isNaN(when)) {
+      return failure(new AppError('validation', 'Pick a time.', { field: 'scheduledFor' }));
+    }
+
+    const noticeMs = RequestMeet.MIN_NOTICE_MINUTES * 60_000;
+    if (when < now.getTime() + noticeMs) {
       return failure(
-        new AppError('validation', `Choose at most ${RequestMeet.MAX_SLOTS} times.`, {
-          field: 'availableSlots',
-        }),
+        new AppError(
+          'validation',
+          `Pick a time at least ${RequestMeet.MIN_NOTICE_MINUTES} minutes from now, so the café and the other person both have notice.`,
+          { field: 'scheduledFor' },
+        ),
       );
     }
 
-    // Soonest first, so the matching service reads them in preference order.
-    const slots = [...future].sort((a, b) => a.getTime() - b.getTime());
+    const duration = request.durationMinutes ?? RequestMeet.DEFAULT_DURATION_MINUTES;
+    if (
+      duration < RequestMeet.MIN_DURATION_MINUTES ||
+      duration > RequestMeet.MAX_DURATION_MINUTES
+    ) {
+      return failure(
+        new AppError(
+          'validation',
+          `A meet runs between ${RequestMeet.MIN_DURATION_MINUTES} minutes and ${RequestMeet.MAX_DURATION_MINUTES / 60} hours.`,
+          { field: 'durationMinutes' },
+        ),
+      );
+    }
 
-    return this.meets.requestMeet({ ...request, availableSlots: slots });
+    return this.meets.requestMeeting({ ...request, durationMinutes: duration });
   }
 }

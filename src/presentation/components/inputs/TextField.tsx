@@ -11,6 +11,8 @@ export type TextFieldProps = Omit<TextInputProps, 'style'> & {
   /** Shown under the field when there is no error. */
   hint?: string;
   containerStyle?: ViewStyle;
+  /** A control inside the field's right edge, such as a show-password button. */
+  trailing?: React.ReactNode;
 };
 
 /**
@@ -25,6 +27,7 @@ export function TextField({
   error,
   hint,
   containerStyle,
+  trailing,
   onFocus,
   onBlur,
   ...rest
@@ -44,33 +47,38 @@ export function TextField({
         {label}
       </AppText>
 
-      <TextInput
-        accessibilityLabel={label}
-        placeholderTextColor={theme.colors.placeholder}
-        onFocus={(event) => {
-          setFocused(true);
-          onFocus?.(event);
-        }}
-        onBlur={(event) => {
-          setFocused(false);
-          onBlur?.(event);
-        }}
-        style={[
-          styles.input,
-          theme.typography.body,
-          {
-            marginTop: theme.spacing[8],
-            minHeight: 48,
-            paddingHorizontal: theme.spacing[16],
-            borderRadius: theme.radii.md,
-            borderWidth: StyleSheet.hairlineWidth * 2,
-            borderColor,
-            color: theme.colors.textPrimary,
-            backgroundColor: theme.colors.surface,
-          },
-        ]}
-        {...rest}
-      />
+      <View style={styles.row}>
+        <TextInput
+          accessibilityLabel={label}
+          placeholderTextColor={theme.colors.placeholder}
+          onFocus={(event) => {
+            setFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            onBlur?.(event);
+          }}
+          style={[
+            styles.input,
+            theme.typography.body,
+            {
+              marginTop: theme.spacing[8],
+              minHeight: 48,
+              paddingHorizontal: theme.spacing[16],
+              // Room for the trailing control, so text never runs under it.
+              paddingRight: trailing ? 48 : theme.spacing[16],
+              borderRadius: theme.radii.md,
+              borderWidth: StyleSheet.hairlineWidth * 2,
+              borderColor,
+              color: theme.colors.textPrimary,
+              backgroundColor: theme.colors.surface,
+            },
+          ]}
+          {...rest}
+        />
+        {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
+      </View>
 
       {error || hint ? (
         <AppText
@@ -87,4 +95,7 @@ export function TextField({
 
 const styles = StyleSheet.create({
   input: { width: '100%' },
+  row: { justifyContent: 'center' },
+  // Pinned to the input's height, below the label, and centred in it.
+  trailing: { position: 'absolute', right: 4, bottom: 0, height: 48, justifyContent: 'center' },
 });

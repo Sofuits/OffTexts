@@ -1,7 +1,10 @@
+import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 
 import { AppError } from '@/domain/repositories';
+import { readAuthLink } from './authLinks';
 import type { TypedSupabaseClient } from './supabaseClient';
 
 /**
@@ -17,13 +20,16 @@ import type { TypedSupabaseClient } from './supabaseClient';
  *      iOS, Custom Tabs on Android. NOT a WebView: Google blocks OAuth in
  *      embedded WebViews outright (`disallowed_useragent`), because an app
  *      hosting a WebView can read the password typed into it.
- *   3. The browser redirects back to our own scheme, `offtexts://`, carrying
- *      the tokens in the URL fragment.
+ *   3. The browser redirects back to the app — see `oauthRedirect()` — with
+ *      the tokens in the URL fragment, and the auth session hands that URL
+ *      straight back to this function.
  *   4. Hand those tokens to `setSession`, which is what makes the client — and
- *      therefore every repository — authenticated.
+ *      therefore every repository — authenticated. `onAuthStateChange` then
+ *      moves the app on, exactly as for any other sign-in.
  *
- * Step 3 is why this needs a development build. Expo Go owns the `exp://`
- * scheme and cannot hand a custom-scheme redirect to our code.
+ * This works in a development or store build and in Expo Go. The address the
+ * browser returns to is chosen by `oauthRedirect()`, and must be allowed in
+ * Supabase.
  */
 
 /** Finishes any auth session left dangling by a previous attempt. */
@@ -31,22 +37,49 @@ WebBrowser.maybeCompleteAuthSession();
 
 export type OAuthOutcome =
   | { status: 'success' }
-  /** The member closed the browser. Not an error. */
-  | { status: 'cancelled' };
+  /** The member closed the browser, or said no on the consent screen. Not an error. */
+  | { status: 'cancelled' }
+  /**
+   * Supabase sent the browser back with an error instead of a session —
+   * sign-ups switched off, say, or the new account failing to save. Reported
+   * rather than thrown so the repository, which has the logger and knows the
+   * member-facing wording, decides what to say.
+   */
+  | {
+      status: 'failed';
+      error: string | null;
+      errorCode: string | null;
+      description: string | null;
+    };
 
-/** Pulls `access_token` and `refresh_token` out of the redirect URL. */
-function readTokens(url: string): { accessToken: string; refreshToken: string } | null {
-  // Supabase returns them in the fragment (#), not the query string, so they
-  // never reach a server log. URL parsing has to account for that.
-  const fragment = url.includes('#') ? url.split('#')[1] : '';
-  const query = url.includes('?') ? (url.split('?')[1] ?? '').split('#')[0] : '';
-  const params = new URLSearchParams(fragment || query || '');
-
-  const accessToken = params.get('access_token');
-  const refreshToken = params.get('refresh_token');
-
-  if (!accessToken || !refreshToken) return null;
-  return { accessToken, refreshToken };
+/**
+ * Where the provider's sign-in page sends the member back to.
+ *
+ * ON IPHONE it is always the app's own address, `offtexts://auth/callback` —
+ * the one an installed build uses. iOS's sign-in sheet
+ * (ASWebAuthenticationSession) watches for that scheme itself and hands the
+ * address straight back to this code, so nothing has to be registered with the
+ * system: it comes back to the app inside Expo Go too, with no Expo Go address
+ * to list in Supabase.
+ *
+ * ON ANDROID the system has to deliver the address to an app that registered
+ * it, so it is built by expo-linking from the scheme in app.config.ts:
+ * `offtexts://auth/callback` in a development or store build, and
+ * `exp://<this computer>:8081/--/auth/callback` in Expo Go.
+ *
+ * Whichever it is MUST BE LISTED in Supabase under Authentication → URL
+ * Configuration → Redirect URLs. When it is not, Supabase does not fail: it
+ * sends the browser — with the new session in its address — to the Site URL
+ * instead, and the app never hears back. The composition root logs it in
+ * development.
+ */
+export function oauthRedirect(): string {
+  if (Platform.OS === 'ios') {
+    const configured = Constants.expoConfig?.scheme;
+    const scheme = Array.isArray(configured) ? configured[0] : configured;
+    if (scheme) return `${scheme}://auth/callback`;
+  }
+  return Linking.createURL('/auth/callback');
 }
 
 /**
@@ -71,8 +104,7 @@ export async function runOAuthFlow(
   client: TypedSupabaseClient,
   provider: 'google',
 ): Promise<OAuthOutcome> {
-  // Built from the scheme in app.config.ts, so it cannot drift from it.
-  const redirectTo = Linking.createURL('/auth/callback');
+  const redirectTo = oauthRedirect();
 
   const { data, error } = await client.auth.signInWithOAuth({
     provider,
@@ -98,18 +130,29 @@ export async function runOAuthFlow(
     return { status: 'cancelled' };
   }
 
-  const tokens = readTokens(result.url);
-  if (!tokens) {
-    // The provider can redirect back with `?error=access_denied` when consent
-    // is refused, which lands here rather than as a cancellation.
-    const denied = result.url.includes('error=access_denied');
-    if (denied) return { status: 'cancelled' };
+  const link = readAuthLink(result.url);
+
+  if (link.kind === 'error') {
+    // Saying no on Google's consent screen comes back as a bare
+    // `access_denied`, with no Supabase error code: the member backed out.
+    // Supabase's own refusals (sign-ups disabled, for one) also use
+    // `access_denied`, but always add an `error_code` — so they are failures.
+    if (link.error === 'access_denied' && !link.errorCode) return { status: 'cancelled' };
+    return {
+      status: 'failed',
+      error: link.error,
+      errorCode: link.errorCode,
+      description: link.description,
+    };
+  }
+
+  if (link.kind === 'none') {
     throw new AppError('unauthenticated', 'Sign-in did not complete. Try again.');
   }
 
   const { error: sessionError } = await client.auth.setSession({
-    access_token: tokens.accessToken,
-    refresh_token: tokens.refreshToken,
+    access_token: link.accessToken,
+    refresh_token: link.refreshToken,
   });
 
   if (sessionError) throw sessionError;

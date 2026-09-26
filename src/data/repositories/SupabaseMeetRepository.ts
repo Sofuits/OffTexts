@@ -1,10 +1,10 @@
-import type { Meet } from '@/domain/entities';
+import type { Meet, MeetId } from '@/domain/entities';
 import {
   AppError,
   attempt,
   success,
+  type MeetingRequest,
   type MeetRepository,
-  type MeetRequest,
   type Result,
 } from '@/domain/repositories';
 import type { MeetLocalDataSource } from '@/data/datasources/local';
@@ -92,29 +92,36 @@ export class SupabaseMeetRepository implements MeetRepository {
     }, classifySupabaseError);
   }
 
-  async requestMeet(request: MeetRequest): Promise<Result<Meet>> {
+  /**
+   * Books a table, through the contract's RPC.
+   *
+   * NOT an insert. `api_v1.request_meeting` does four things a client cannot:
+   * it resolves the other member from the match under the caller's own RLS
+   * (so a match you are not in simply is not found, and the error cannot tell
+   * the two cases apart), it reads the booking fee at this instant and writes
+   * it onto the row so a later price change cannot reprice a booking somebody
+   * already made, it refuses a time in the past, and it does all of that in one
+   * transaction.
+   *
+   * Writing this as an insert would mean the app deciding who the other member
+   * is and what the fee was — two things it has no business deciding, and one
+   * of them a number the member pays.
+   */
+  async requestMeeting(request: MeetingRequest): Promise<Result<MeetId>> {
     return attempt(async () => {
-      const userId = await this.requireUserId();
-      const slot = request.availableSlots[0];
-      if (!slot) throw new AppError('validation', 'Choose a time.');
-
-      // Venue selection belongs to the backend: it needs the partner-venue list
-      // and both members' locations, neither of which the app should hold.
-      const { data, error } = await this.client
-        .from('meets')
-        .insert({
-          requester_id: userId,
-          recipient_id: request.personId,
-          venue_name: 'To be confirmed',
-          venue_area: 'Pune',
-          scheduled_for: slot.toISOString(),
-          status: 'pending',
-        })
-        .select('*')
-        .single();
+      const { data, error } = await this.client.schema('api_v1').rpc('request_meeting', {
+        p_match_id: request.matchId,
+        p_cafe_id: request.venueId,
+        p_scheduled_for: request.scheduledFor.toISOString(),
+        ...(request.durationMinutes ? { p_duration_minutes: request.durationMinutes } : {}),
+      });
 
       if (error) throw error;
-      return toMeet(data as unknown as MeetRowWithPerson, userId);
+      if (!data) {
+        throw new AppError('server', 'The booking did not go through. Try again in a moment.');
+      }
+
+      return data;
     }, classifySupabaseError);
   }
 

@@ -61,6 +61,7 @@ const NATIVE_MODULES = [
   '@react-native-community/netinfo',
   '@react-navigation/native',
   'expo-constants',
+  'expo-image-picker',
   'expo-linking',
   'expo-secure-store',
   'expo-web-browser',

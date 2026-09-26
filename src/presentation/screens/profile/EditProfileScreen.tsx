@@ -1,9 +1,11 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
 
 import {
   AppText,
   Button,
+  Chip,
+  ChipGroup,
+  InterestPicker,
   QueryBoundary,
   ScreenContainer,
   SectionHeader,
@@ -11,9 +13,9 @@ import {
   TextField,
 } from '@/presentation/components';
 import { MEET_INTENTS, MEET_INTENT_LABELS, type MeetIntent, type Person } from '@/domain/entities';
+import { ONBOARDING_LIMITS } from '@/domain/usecases';
 import type { ProfileUpdate } from '@/domain/repositories';
 import { useMyProfile, useUpdateMyProfile } from '@/presentation/hooks';
-import { useTheme } from '@/presentation/hooks/useTheme';
 import type { RootStackScreenProps } from '@/app/navigation/types';
 
 type Props = RootStackScreenProps<'EditProfile'>;
@@ -34,6 +36,9 @@ const LIMITS = {
   bio: { max: 1000 },
   age: { min: 18, max: 120 },
   city: { max: 60 },
+  // Shared with the onboarding wizard, so the two cannot disagree about how
+  // many interests a profile needs.
+  interests: ONBOARDING_LIMITS.interests,
 } as const;
 
 type FormState = {
@@ -43,9 +48,12 @@ type FormState = {
   city: string;
   bio: string;
   intents: MeetIntent[];
+  interests: string[];
 };
 
-type FieldErrors = Partial<Record<keyof Omit<FormState, 'intents'> | 'intents', string>>;
+type FieldErrors = Partial<
+  Record<keyof Omit<FormState, 'intents' | 'interests'> | 'intents' | 'interests', string>
+>;
 
 function toFormState(person: Person): FormState {
   return {
@@ -57,6 +65,7 @@ function toFormState(person: Person): FormState {
     city: person.city,
     bio: person.bio ?? '',
     intents: person.intents,
+    interests: person.interests,
   };
 }
 
@@ -87,6 +96,12 @@ function validate(form: FormState): FieldErrors {
 
   if (form.intents.length === 0) errors.intents = 'Pick at least one reason to meet.';
 
+  if (form.interests.length < LIMITS.interests.min) {
+    errors.interests = `Pick at least ${LIMITS.interests.min} — it is what the first conversation starts from.`;
+  } else if (form.interests.length > LIMITS.interests.max) {
+    errors.interests = `Pick at most ${LIMITS.interests.max}.`;
+  }
+
   return errors;
 }
 
@@ -115,6 +130,13 @@ function toUpdate(form: FormState, original: Person): ProfileUpdate {
     form.intents.length === original.intents.length &&
     form.intents.every((intent) => original.intents.includes(intent));
   if (!sameIntents) update.intents = form.intents;
+
+  // Order matters here where it does not for intents: interests are shown in
+  // the order they were chosen, so a reorder is a real change.
+  const sameInterests =
+    form.interests.length === original.interests.length &&
+    form.interests.every((interest, index) => original.interests[index] === interest);
+  if (!sameInterests) update.interests = form.interests;
 
   return update;
 }
@@ -156,7 +178,6 @@ function EditProfileForm({
   person: Person;
   onDone: () => void;
 }): React.JSX.Element {
-  const theme = useTheme();
   const update = useUpdateMyProfile();
 
   const [form, setForm] = useState<FormState>(() => toFormState(person));
@@ -265,40 +286,45 @@ function EditProfileForm({
       <SectionHeader title="I want to meet people for" subtitle="Pick one or more" />
       <Spacer size={12} />
 
-      <View style={styles.chips}>
-        {MEET_INTENTS.map((intent) => {
-          const selected = form.intents.includes(intent);
-          return (
-            <Pressable
-              key={intent}
-              onPress={() => toggleIntent(intent)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: selected }}
-              accessibilityLabel={MEET_INTENT_LABELS[intent]}
-              testID={`chip-${intent}`}
-              style={({ pressed }) => [
-                styles.chip,
-                {
-                  borderRadius: theme.radii.full,
-                  borderColor: selected ? theme.colors.primary : theme.colors.border,
-                  backgroundColor: selected ? theme.colors.primary : theme.colors.transparent,
-                  opacity: pressed ? 0.75 : 1,
-                },
-              ]}
-            >
-              <AppText variant="caption" color={selected ? 'textOnPrimary' : 'textSecondary'}>
-                {MEET_INTENT_LABELS[intent]}
-              </AppText>
-            </Pressable>
-          );
-        })}
-      </View>
+      <ChipGroup>
+        {MEET_INTENTS.map((intent) => (
+          <Chip
+            key={intent}
+            label={MEET_INTENT_LABELS[intent]}
+            selected={form.intents.includes(intent)}
+            onPress={() => toggleIntent(intent)}
+            testID={`chip-${intent}`}
+          />
+        ))}
+      </ChipGroup>
 
       {errorFor('intents') ? (
         <>
           <Spacer size={8} />
           <AppText variant="caption" color="danger" testID="error-intents">
             {errors.intents}
+          </AppText>
+        </>
+      ) : null}
+
+      <Spacer size={32} />
+      <SectionHeader
+        title="What you are into"
+        subtitle="Shown on your profile, and what the first ten minutes gets spent on"
+      />
+      <Spacer size={12} />
+      <InterestPicker
+        selected={form.interests}
+        onChange={(interests) => set('interests', interests)}
+        min={LIMITS.interests.min}
+        max={LIMITS.interests.max}
+      />
+
+      {errorFor('interests') ? (
+        <>
+          <Spacer size={8} />
+          <AppText variant="caption" color="danger" testID="error-interests">
+            {errors.interests}
           </AppText>
         </>
       ) : null}
@@ -335,8 +361,3 @@ function EditProfileForm({
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1 },
-});

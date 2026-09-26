@@ -76,5 +76,24 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     enableGoogleAuth: process.env.EXPO_PUBLIC_ENABLE_GOOGLE_AUTH,
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
     enableAnalytics: process.env.EXPO_PUBLIC_ENABLE_ANALYTICS,
+    // Seconds before "Send a new code" is offered again. Copy it from the
+    // Supabase Dashboard; see src/shared/config/env.ts.
+    authResendCooldownSeconds: process.env.EXPO_PUBLIC_AUTH_RESEND_COOLDOWN_SECONDS,
+    // The Supabase Dashboard's "Password requirements" setting, so the sign-up
+    // form lists the same rules the server enforces.
+    authPasswordRequirements: process.env.EXPO_PUBLIC_AUTH_PASSWORD_REQUIREMENTS,
+    // A one-tap sign-in for reviewing the app while the real sign-in screen is
+    // being built by somebody else. These SHIP IN THE BUNDLE and are readable
+    // by anyone who downloads it, so they may only ever point at a throwaway
+    // test account — see the long comment in src/shared/config/env.ts.
+    // src/shared/config/env.ts refuses to honour them when
+    // EXPO_PUBLIC_ENVIRONMENT is production, so they cannot ship enabled.
+    demoEmail: process.env.EXPO_PUBLIC_DEMO_EMAIL,
+    demoPassword: process.env.EXPO_PUBLIC_DEMO_PASSWORD,
+    // Links this app to its EAS project, for `eas build` and `eas submit`. EAS
+    // cannot write it here itself because this config is TypeScript, not JSON.
+    eas: {
+      projectId: '49cb0563-3f24-4274-81d2-e9d95a4134ac',
+    },
   },
 });
