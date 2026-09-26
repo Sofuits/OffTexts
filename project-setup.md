@@ -398,26 +398,84 @@ Then Authentication → URL Configuration → Redirect URLs, add:
 
 ```
 offtexts://auth/callback
+offtexts://auth/reset
 ```
 
-That string is built by `expo-linking` from `scheme: 'offtexts'` in
-`app.config.ts`. Change the scheme and this must change with it.
+These are the addresses every development and store build returns to, on
+Android and iPhone alike, and the one an iPhone uses for Google sign-in even in
+Expo Go. They are built by `expo-linking` from `scheme: 'offtexts'` in
+`app.config.ts` — change the scheme and they change with it. (Android builds
+used to produce `offtexts:///auth/callback`, with three slashes, which needed a
+separate entry and failed silently without one;
+`src/infrastructure/supabase/__tests__/deepLinks.test.ts` now runs the real
+`expo-linking` to keep it at two.)
+
+A redirect that is not listed does not fail: Supabase sends the browser to the
+Site URL instead, and the app never hears back — Google's consent screen, then
+nothing.
+
+**Expo Go on Android** returns to an address on the developer's own machine,
+such as `exp://192.168.1.23:8081/--/auth/callback` (and `…/--/auth/reset`). The
+app logs its exact value at startup — "Google sign-in returns to" — when
+`EXPO_PUBLIC_ENVIRONMENT=development`. It changes with the computer's IP
+address, so each developer needs their own entry, and a new one when their IP
+changes. **Never add a wildcard such as `exp://**`**: on this project it would
+let sign-in tokens be sent to anybody's Expo Go. Every `exp://` entry comes out
+before launch (§8). For anything beyond one developer, use a development build
+(Step 4).
 
 ### Step 4 — A development build
 
-**Google sign-in does not work in Expo Go.** Expo Go owns the `exp://` URL
-scheme, so it cannot hand a redirect to `offtexts://` back to our code. This is
-not a bug to work around — it is how custom schemes work.
+Google sign-in does work in Expo Go: on iPhone with the fixed
+`offtexts://auth/callback`, and on Android with the per-developer `exp://`
+entry described in Step 3. That per-developer entry is what does not scale — it
+puts one IP address per person into the production project's allow-list. A
+development build uses the fixed `offtexts://` addresses on both platforms, so
+the two entries in Step 3 work for everyone.
 
-```bash
-npm install -g eas-cli
-eas login
-eas build:configure
-eas build --profile development --platform android
-```
+What it takes:
 
-Install the resulting build on your phone once. After that the day-to-day
-workflow is identical to Expo Go: `npm start`, scan, reload.
+1. **Install `expo-dev-client`.** `eas.json`'s `development` profile already
+   sets `developmentClient: true`, which needs this package, and it is not
+   installed yet — EAS stops and asks for it otherwise. Commit the
+   `package.json` and lockfile change.
+
+   ```bash
+   npx expo install expo-dev-client
+   ```
+
+2. **Build from a branch that has all the native modules you run.** A
+   development build contains the app's native code; the JavaScript is loaded
+   from Metro. Add a native module later — the UI rebuild adds fonts, a splash
+   screen, Reanimated, SVG, haptics and gradients — and the build must be made
+   again, or the app fails the moment it reaches that module.
+
+3. **Build and install.** The EAS project is already linked
+   (`extra.eas.projectId` in `app.config.ts`); you need an Expo account with
+   access to it.
+
+   ```bash
+   npm install -g eas-cli
+   eas login
+   eas build --profile development --platform android
+   ```
+
+   EAS builds an `.apk` in the cloud and prints a link and QR code; open it on
+   the phone and install. Once per native change, not per code change.
+
+4. **Day to day:** `npx expo start`, and open the project in the development
+   build instead of Expo Go. Reloads and fast refresh work as before.
+
+**iPhone:** a development build for a physical device needs an Apple Developer
+account and the device registered (`eas device:create`). A Simulator build
+does not — add `"ios": { "simulator": true }` to a profile for that.
+
+**Nothing in `app.config.ts` needs changing:** `scheme`, `android.package` and
+`ios.bundleIdentifier` are set. `.env` is not uploaded to EAS (it is
+gitignored), and a development build does not need it to be: its JavaScript and
+config come from Metro on the developer's machine, with that machine's `.env`.
+Preview and production builds will need the `EXPO_PUBLIC_*` values set as EAS
+environment variables.
 
 ### Why OAuth uses the system browser, not a WebView
 
@@ -531,6 +589,12 @@ Not needed now, needed before launch:
 - Apple review: an account for the reviewer to sign in with, or the review is
   rejected for "cannot evaluate the app"
 - Age rating. A dating category brings extra scrutiny on both stores
+- **Remove every `exp://` entry** from Supabase → Authentication → URL
+  Configuration → Redirect URLs. They are per-developer Expo Go addresses (§6a,
+  Step 3) and have no place in the production project. There must never be an
+  `exp://**` wildcard. What should remain is the app's own
+  `offtexts://auth/callback` and `offtexts://auth/reset`, plus the website's
+  reset page if one is used
 
 ---
 
