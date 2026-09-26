@@ -37,11 +37,17 @@ import {
   GetScheduledMeets,
   RequestMeet,
   RequestPasswordReset,
+  PASSWORD_REQUIREMENTS,
+  type PasswordRequirement,
+  ResendVerificationCode,
   SignIn,
   SignInWithGoogle,
   SignOut,
   SignUp,
   SubmitReview,
+  UpdatePassword,
+  VerifyEmail,
+  VerifyPasswordResetCode,
 } from '@/domain/usecases';
 import { NoopAnalytics, type Analytics } from '@/infrastructure/analytics';
 import { ConsoleLogger, SentryLogger, type Logger } from '@/infrastructure/logging';
@@ -65,7 +71,9 @@ import {
 import {
   bridgeSupabaseToAppState,
   createSupabaseClient,
+  oauthRedirect,
   passwordResetRedirect,
+  reportRawSupabaseErrors,
   runOAuthFlow,
   type TypedSupabaseClient,
 } from '@/infrastructure/supabase';
@@ -106,7 +114,11 @@ export type Container = {
   useCases: {
     signIn: SignIn;
     signUp: SignUp;
+    verifyEmail: VerifyEmail;
+    resendVerificationCode: ResendVerificationCode;
     requestPasswordReset: RequestPasswordReset;
+    updatePassword: UpdatePassword;
+    verifyPasswordResetCode: VerifyPasswordResetCode;
     signInWithGoogle: SignInWithGoogle;
     signOut: SignOut;
     completeOnboarding: CompleteOnboarding;
@@ -125,6 +137,8 @@ export type Container = {
   };
   /** Which backend was wired. For a debug screen and for tests. */
   backend: 'supabase' | 'in-memory';
+  /** The password rules the forms show, from the Supabase setting. */
+  passwordRequirement: PasswordRequirement;
   /** Stops anything long-lived the container started. Call on teardown. */
   dispose: () => void;
 };
@@ -136,6 +150,24 @@ export type ContainerOverrides = {
   /** Force a backend regardless of configuration. */
   forceBackend?: 'supabase' | 'in-memory';
 };
+
+/**
+ * The Supabase "Password requirements" setting from config, checked against
+ * the values Supabase actually has. An unrecognised value is logged and treated
+ * as "no required characters" — the server still enforces its real setting, so
+ * the cost of a typo is a less helpful form, not a weaker password.
+ */
+function readPasswordRequirement(logger: Logger): PasswordRequirement {
+  const value = env.authPasswordRequirements;
+  if (!value) return null;
+  const known = PASSWORD_REQUIREMENTS.find((requirement) => requirement === value);
+  if (known) return known;
+  logger.warn('EXPO_PUBLIC_AUTH_PASSWORD_REQUIREMENTS is not a value Supabase uses; ignoring it.', {
+    value,
+    allowed: PASSWORD_REQUIREMENTS,
+  });
+  return null;
+}
 
 function buildLogger(): Logger {
   const console = new ConsoleLogger();
@@ -151,10 +183,24 @@ function buildSupabaseRepositories(
   const profileCache = new ProfileLocalDataSource(store, logger);
   const meetCache = new MeetLocalDataSource(store, logger);
 
+  // The address a password reset email sends the member back to. It differs by
+  // runtime — `offtexts://auth/reset` in a development or store build,
+  // `exp://<your-machine>/--/auth/reset` in Expo Go — and it must be listed in
+  // Supabase under Authentication → URL Configuration → Redirect URLs, or
+  // Supabase silently sends the member to the Site URL instead. Logged in
+  // development so the exact string can be copied into that list.
+  const resetRedirect = passwordResetRedirect();
+  if (env.isDevelopment) {
+    logger.info('Password reset links return to', { redirect: resetRedirect });
+    // Must be listed under Supabase → Authentication → URL Configuration →
+    // Redirect URLs for "Continue with Google" to come back to the app.
+    logger.info('Google sign-in returns to', { redirect: oauthRedirect() });
+  }
+
   return {
     // The browser flow is handed in here, not imported by the repository —
     // that is what keeps `data/` loadable outside React Native.
-    auth: new SupabaseAuthRepository(client, logger, runOAuthFlow, passwordResetRedirect()),
+    auth: new SupabaseAuthRepository(client, logger, runOAuthFlow, resetRedirect),
     profile: new SupabaseProfileRepository(client, profileCache, connectivity, logger),
     discover: new SupabaseDiscoverRepository(client),
     matching: new SupabaseMatchingRepository(client),
@@ -226,6 +272,15 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
     });
     // Without this, the session can expire while the app is backgrounded.
     teardown.push(bridgeSupabaseToAppState(client));
+    // Development only: the raw PostgREST error (code, message, details,
+    // hint) behind every generic "Something went wrong", so an unmapped code
+    // can be diagnosed from the device. Same gate as the demo sign-in, so a
+    // production build never logs a database message.
+    reportRawSupabaseErrors(
+      env.hasDemoSignIn
+        ? (raw) => logger.warn(`Supabase error, shown as '${raw.kind}' (dev only)`, raw)
+        : null,
+    );
     repositories = buildSupabaseRepositories(client, logger, connectivity, store);
   } else if (env.devSkipAuth) {
     // Loud on purpose. The cost of this flag is someone spending an afternoon
@@ -241,13 +296,18 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
   }
 
   repositories = { ...repositories, ...overrides.repositories };
+  const passwordRequirement = readPasswordRequirement(logger);
 
   return {
     repositories,
     useCases: {
       signIn: new SignIn(repositories.auth),
-      signUp: new SignUp(repositories.auth),
+      signUp: new SignUp(repositories.auth, passwordRequirement),
+      verifyEmail: new VerifyEmail(repositories.auth),
+      resendVerificationCode: new ResendVerificationCode(repositories.auth),
       requestPasswordReset: new RequestPasswordReset(repositories.auth),
+      updatePassword: new UpdatePassword(repositories.auth, passwordRequirement),
+      verifyPasswordResetCode: new VerifyPasswordResetCode(repositories.auth),
       signInWithGoogle: new SignInWithGoogle(repositories.auth),
       // Signing out must also drop whatever the previous member left on disk,
       // or the next person to sign in on this phone sees their cached profile.
@@ -269,6 +329,7 @@ export function createContainer(overrides: ContainerOverrides = {}): Container {
       store,
     },
     backend,
+    passwordRequirement,
     dispose: () => teardown.forEach((stop) => stop()),
   };
 }

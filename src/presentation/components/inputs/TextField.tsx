@@ -11,6 +11,8 @@ export type TextFieldProps = Omit<TextInputProps, 'style'> & {
   /** Shown under the field when there is no error. */
   hint?: string;
   containerStyle?: ViewStyle;
+  /** A control inside the field's right edge, such as a show-password button. */
+  trailing?: React.ReactNode;
 };
 
 /**
@@ -30,6 +32,7 @@ export function TextField({
   error,
   hint,
   containerStyle,
+  trailing,
   onFocus,
   onBlur,
   multiline,
@@ -74,6 +77,8 @@ export function TextField({
             {
               minHeight: theme.sizes.field,
               paddingHorizontal: theme.spacing[16],
+              // Room for the trailing control, so text never runs under it.
+              paddingRight: trailing ? theme.sizes.field : theme.spacing[16],
               borderRadius: theme.radii.lg,
               borderWidth: error ? 2 : StyleSheet.hairlineWidth * 2,
               borderColor: error ? theme.colors.danger : theme.colors.border,
@@ -84,6 +89,11 @@ export function TextField({
           ]}
           {...rest}
         />
+        {/* Over the input's right edge: the same height as the field (not the
+            band beneath it), and above the input so it can be pressed. */}
+        {trailing ? (
+          <View style={[styles.trailing, { height: theme.sizes.field }]}>{trailing}</View>
+        ) : null}
       </View>
 
       {error || hint ? (
@@ -106,4 +116,5 @@ const styles = StyleSheet.create({
   // Android centres multiline text vertically unless told otherwise.
   multiline: { textAlignVertical: 'top' },
   band: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  trailing: { position: 'absolute', top: 0, right: 4, justifyContent: 'center', zIndex: 2 },
 });

@@ -22,6 +22,8 @@ export { SectionHeader, type SectionHeaderProps } from './common/SectionHeader';
 export { Spacer, type SpacerProps } from './common/Spacer';
 export { InterestPicker, type InterestPickerProps } from './inputs/InterestPicker';
 export { MonthCalendar, type MonthCalendarProps } from './inputs/MonthCalendar';
+export { PasswordChecklist } from './inputs/PasswordChecklist';
+export { PasswordField, type PasswordFieldProps } from './inputs/PasswordField';
 export { TextField, type TextFieldProps } from './inputs/TextField';
 export { ScreenContainer, type ScreenContainerProps } from './layouts/ScreenContainer';
 export { ScreenHeader, type ScreenHeaderProps } from './layouts/ScreenHeader';

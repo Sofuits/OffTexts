@@ -22,6 +22,7 @@ import {
   PersonProfileScreen,
   RatingsReviewsScreen,
   RequestMeetScreen,
+  SetNewPasswordScreen,
   SignInScreen,
   SplashScreen,
 } from '@/presentation/screens';
@@ -42,7 +43,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  */
 export function RootNavigator(): React.JSX.Element {
   const theme = useTheme();
-  const { isRestoring, isSignedIn } = useAuth();
+  const { isRestoring, isSignedIn, passwordRecovery } = useAuth();
 
   // Hand our palette to React Navigation so its own chrome (headers, card
   // backgrounds, the flash between screens) matches the app.
@@ -67,6 +68,18 @@ export function RootNavigator(): React.JSX.Element {
   // during it flashes it at members who are already signed in.
   if (isRestoring) return <SplashScreen />;
 
+  // A reset code or link signs the member in, but that session exists only so they can
+  // choose a new password. Until they do — or give up — nothing else is shown,
+  // including the app the session would otherwise open.
+  if (passwordRecovery.status === 'active' || passwordRecovery.status === 'failed') {
+    return <SetNewPasswordScreen />;
+  }
+
+  // While a reset code is being checked, the sign-in screen stays mounted even
+  // though a correct code signs the member in part-way through: a wrong code
+  // is then corrected on the screen it was typed into, not a fresh one.
+  const showApp = isSignedIn && passwordRecovery.status !== 'verifying';
+
   return (
     <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator
@@ -90,7 +103,7 @@ export function RootNavigator(): React.JSX.Element {
           navigate() instead leaves both in the stack and is how a signed-out
           member ends up able to swipe back into the app.
         */}
-        {isSignedIn ? (
+        {showApp ? (
           <Stack.Screen name="RootTabs" component={AuthedArea} options={{ headerShown: false }} />
         ) : (
           <Stack.Screen name="SignIn" component={SignInScreen} options={{ headerShown: false }} />

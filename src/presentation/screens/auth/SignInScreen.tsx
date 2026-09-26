@@ -2,15 +2,20 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppError } from '@/domain/repositories';
-import { MIN_PASSWORD_LENGTH } from '@/domain/usecases';
+import { passwordChecks } from '@/domain/usecases';
 import { env } from '@/shared/config';
-import { useUseCases } from '@/app/di';
+import { isValidEmail, suggestEmailCorrection } from '@/shared/validation';
+import { useContainer, useUseCases } from '@/app/di';
 import { AppText } from '@/presentation/components/common/AppText';
 import { Button } from '@/presentation/components/buttons/Button';
 import { Logo } from '@/presentation/components/common/Logo';
 import { ScreenContainer } from '@/presentation/components/layouts/ScreenContainer';
 import { Spacer } from '@/presentation/components/common/Spacer';
+import { PasswordChecklist } from '@/presentation/components/inputs/PasswordChecklist';
+import { PasswordField } from '@/presentation/components/inputs/PasswordField';
 import { TextField } from '@/presentation/components/inputs/TextField';
+import { ResetPasswordCodeScreen } from './ResetPasswordCodeScreen';
+import { VerifyEmailScreen } from './VerifyEmailScreen';
 
 /**
  * Sign in, and create an account.
@@ -48,8 +53,8 @@ const COPY: Record<Mode, { title: string; subtitle: string; action: string }> = 
   },
   reset: {
     title: 'Reset your password',
-    subtitle: 'We’ll email you a link. It expires shortly, so use it soon.',
-    action: 'Send the link',
+    subtitle: 'We’ll email you a 6-digit code to choose a new password.',
+    action: 'Send the code',
   },
 };
 
@@ -57,13 +62,39 @@ export function SignInScreen(): React.JSX.Element {
   const { signInWithGoogle, signIn, signUp, requestPasswordReset } = useUseCases();
 
   const [mode, setMode] = useState<Mode>('signIn');
-  const [isBusy, setIsBusy] = useState(false);
+  /**
+   * Which action is in flight, if any. Every button is disabled while one
+   * runs, but only the one that was pressed shows the spinner — the email
+   * button spinning while the Google browser is open says something untrue.
+   */
+  const [busyAction, setBusyAction] = useState<'form' | 'google' | 'demo' | null>(null);
+  const isBusy = busyAction !== null;
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  /**
+   * The email is judged once the member leaves the field or submits — not on
+   * every keystroke, which would call "ava@" wrong while it is being typed.
+   */
+  const [emailTouched, setEmailTouched] = useState(false);
+  const { passwordRequirement } = useContainer();
+
+  /**
+   * Set when the member has to enter the code from the sign-up email: straight
+   * after creating the account, or after signing in to one that was never
+   * verified. While set, the code screen replaces this form.
+   */
+  const [verifying, setVerifying] = useState<{ email: string; codeJustSent: boolean } | null>(null);
+  /** The address a sign-in was refused for because it is not verified yet. */
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  /**
+   * Set once a password reset code has been requested. While set, the reset
+   * code screen replaces this form.
+   */
+  const [resettingFor, setResettingFor] = useState<string | null>(null);
 
   const copy = COPY[mode];
 
@@ -75,60 +106,79 @@ export function SignInScreen(): React.JSX.Element {
     setMode(next);
     setError(null);
     setNotice(null);
+    setUnverifiedEmail(null);
     setConfirmPassword('');
   }, []);
 
-  const run = useCallback(async (work: () => Promise<void>) => {
+  const run = useCallback(async (action: 'form' | 'google' | 'demo', work: () => Promise<void>) => {
     setError(null);
     setNotice(null);
-    setIsBusy(true);
+    setUnverifiedEmail(null);
+    setBusyAction(action);
     try {
       await work();
     } catch (caught) {
       setError(caught instanceof AppError ? caught.message : 'Something went wrong. Try again.');
     } finally {
-      setIsBusy(false);
+      setBusyAction(null);
     }
   }, []);
 
   const onSubmit = useCallback(() => {
-    void run(async () => {
+    // A malformed address is marked on the field itself rather than sent to be
+    // refused: the member sees which field is wrong, and no request is spent.
+    setEmailTouched(true);
+    if (!isValidEmail(email)) return;
+
+    void run('form', async () => {
       if (mode === 'reset') {
         const result = await requestPasswordReset.execute(email);
         if (!result.ok) {
           setError(result.error.message);
           return;
         }
-        // Deliberately says nothing about whether the account exists. See
-        // RequestPasswordReset — "no account with that email" would turn this
-        // form into a way to find out who is a member.
-        setNotice(`If ${email.trim()} has an account, a reset link is on its way.`);
+        // The code screen takes over. Like this form, it says nothing about
+        // whether the account exists — see RequestPasswordReset.
+        setResettingFor(email.trim().toLowerCase());
         return;
       }
 
       if (mode === 'signUp') {
         const result = await signUp.execute({ email, password, confirmPassword });
         if (!result.ok) {
+          if (result.error.reason === 'accountExists') {
+            // No code is coming for an account that is already verified, so
+            // the code screen would be a dead end. Straight to sign-in, with
+            // the email and password already typed kept in place.
+            setMode('signIn');
+            setConfirmPassword('');
+            setNotice(result.error.message);
+            return;
+          }
           setError(result.error.message);
           return;
         }
         if (result.value.status === 'confirmationRequired') {
-          // The mode is changed directly rather than through changeMode(),
-          // which clears the messages — and the message is the entire point of
-          // this branch. changeMode() is for a member tapping a link, where a
-          // stale error from the previous mode has to go.
+          // The code screen takes over. The mode goes back to sign-in behind
+          // it, so "Back to sign in" lands on the form the member now needs.
           setMode('signIn');
           setConfirmPassword('');
-          setNotice(
-            `Check ${result.value.email} for a confirmation link. You can sign in once you’ve clicked it.`,
-          );
+          setVerifying({ email: result.value.email, codeJustSent: true });
         }
         // On 'signedIn' the auth subscription moves the navigator; nothing to do.
         return;
       }
 
       const result = await signIn.execute({ email, password });
-      if (!result.ok) setError(result.error.message);
+      if (result.ok) return;
+
+      setError(result.error.message);
+      // Decided by the error's reason, not its wording. No email is sent here:
+      // the member may still have the first code, and every send counts
+      // against the project's hourly allowance. The code screen offers a resend.
+      if (result.error.reason === 'emailNotConfirmed') {
+        setUnverifiedEmail(email.trim().toLowerCase());
+      }
     });
   }, [run, mode, email, password, confirmPassword, signIn, signUp, requestPasswordReset]);
 
@@ -144,7 +194,7 @@ export function SignInScreen(): React.JSX.Element {
    * say, so this cannot ship.
    */
   const onDemoPress = useCallback(() => {
-    void run(async () => {
+    void run('demo', async () => {
       const result = await signIn.execute({
         email: env.demoEmail,
         password: env.demoPassword,
@@ -159,7 +209,7 @@ export function SignInScreen(): React.JSX.Element {
   }, [run, signIn]);
 
   const onGooglePress = useCallback(() => {
-    void run(async () => {
+    void run('google', async () => {
       const result = await signInWithGoogle.execute();
       // A member who opened the browser and backed out has done nothing wrong.
       // Showing an error there makes a working app feel broken, so a cancelled
@@ -168,13 +218,38 @@ export function SignInScreen(): React.JSX.Element {
     });
   }, [run, signInWithGoogle]);
 
-  // The screen is taller than a short phone in sign-up mode, so it scrolls.
-  // ScrollView's keyboardShouldPersistTaps is what keeps the submit button
-  // responsive while the keyboard is up.
-  // The demo block adds about 140dp, which is enough to push the submit button
-  // off a short phone in sign-in mode. It is only ever present in development,
-  // so this does not change the production layout at all.
-  const scrollable = mode !== 'signIn' || env.hasDemoSignIn;
+  // Every mode scrolls and moves clear of the keyboard: otherwise the keyboard
+  // covers the field being typed in, which on most phones is all of them. The
+  // logo and form are centred together as one block, rather than the logo
+  // taking the spare height and pushing the form down to the bottom edge.
+  // The logo shrinks when there is more below it — sign-up, reset, or the
+  // development-only demo block.
+  const compact = mode !== 'signIn' || env.hasDemoSignIn;
+
+  const leaveVerification = useCallback(() => {
+    setVerifying(null);
+    setError(null);
+    setNotice(null);
+    setUnverifiedEmail(null);
+    setPassword('');
+  }, []);
+
+  const leaveReset = useCallback(() => {
+    setResettingFor(null);
+    setMode('signIn');
+    setError(null);
+    setNotice(null);
+  }, []);
+
+  const emailError =
+    emailTouched && email.trim() && !isValidEmail(email)
+      ? 'Enter an email like name@example.com.'
+      : undefined;
+  const emailSuggestion = emailTouched && !emailError ? suggestEmailCorrection(email) : null;
+  const checks = useMemo(
+    () => passwordChecks(password, passwordRequirement),
+    [password, passwordRequirement],
+  );
 
   const submitDisabled = useMemo(() => {
     if (!email.trim()) return true;
@@ -182,10 +257,30 @@ export function SignInScreen(): React.JSX.Element {
     return password.length === 0;
   }, [email, password, mode]);
 
+  if (resettingFor) {
+    return <ResetPasswordCodeScreen email={resettingFor} onBack={leaveReset} />;
+  }
+
+  if (verifying) {
+    return (
+      <VerifyEmailScreen
+        email={verifying.email}
+        codeJustSent={verifying.codeJustSent}
+        onBack={leaveVerification}
+      />
+    );
+  }
+
   return (
-    <ScreenContainer testID="screen-sign-in" scrollable={scrollable} edges={['top', 'bottom']}>
-      <View style={scrollable ? styles.bodyScrolling : styles.body}>
-        <Logo size={scrollable ? 64 : 88} />
+    <ScreenContainer
+      testID="screen-sign-in"
+      scrollable
+      avoidKeyboard
+      edges={['top', 'bottom']}
+      contentContainerStyle={styles.centred}
+    >
+      <View style={styles.body}>
+        <Logo size={compact ? 64 : 88} />
         <Spacer size={20} />
         <AppText variant="display" align="center">
           {copy.title}
@@ -206,18 +301,34 @@ export function SignInScreen(): React.JSX.Element {
           autoCapitalize="none"
           autoCorrect={false}
           textContentType="emailAddress"
+          onBlur={() => {
+            if (email.trim()) setEmailTouched(true);
+          }}
+          error={emailError ?? (emailSuggestion ? `Did you mean ${emailSuggestion}?` : undefined)}
           testID="input-email"
         />
+        {emailSuggestion ? (
+          <Pressable
+            onPress={() => setEmail(emailSuggestion)}
+            accessibilityRole="button"
+            hitSlop={12}
+            style={styles.suggestion}
+            testID="button-use-suggested-email"
+          >
+            <AppText variant="caption" color="primary">
+              Use {emailSuggestion}
+            </AppText>
+          </Pressable>
+        ) : null}
 
         {mode === 'reset' ? null : (
           <>
             <Spacer size={12} />
-            <TextField
+            <PasswordField
               label="Password"
               value={password}
               onChangeText={setPassword}
               placeholder="••••••••"
-              secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
               // `newPassword` rather than `password` on sign-up is what makes a
@@ -226,28 +337,25 @@ export function SignInScreen(): React.JSX.Element {
               textContentType={mode === 'signUp' ? 'newPassword' : 'password'}
               testID="input-password"
             />
+            {mode === 'signUp' ? (
+              <PasswordChecklist checks={checks} testID="password-checklist" />
+            ) : null}
           </>
         )}
 
         {mode === 'signUp' ? (
           <>
             <Spacer size={12} />
-            <TextField
+            <PasswordField
               label="Confirm password"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder="••••••••"
-              secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
               textContentType="newPassword"
               testID="input-confirm-password"
             />
-            <Spacer size={8} />
-            <AppText variant="caption" color="textSecondary">
-              At least {MIN_PASSWORD_LENGTH} characters. A few words you’ll remember beats a short
-              jumble you won’t.
-            </AppText>
           </>
         ) : null}
 
@@ -255,8 +363,8 @@ export function SignInScreen(): React.JSX.Element {
         <Button
           label={copy.action}
           onPress={onSubmit}
-          loading={isBusy}
-          disabled={submitDisabled}
+          loading={busyAction === 'form'}
+          disabled={submitDisabled || isBusy}
           fullWidth
           size="lg"
           testID="button-submit"
@@ -268,6 +376,19 @@ export function SignInScreen(): React.JSX.Element {
             <AppText variant="caption" color="danger" align="center" testID="sign-in-error">
               {error}
             </AppText>
+          </>
+        ) : null}
+
+        {unverifiedEmail ? (
+          <>
+            <Spacer size={12} />
+            <Button
+              label="Verify email"
+              variant="outline"
+              onPress={() => setVerifying({ email: unverifiedEmail, codeJustSent: false })}
+              fullWidth
+              testID="button-go-verify"
+            />
           </>
         ) : null}
 
@@ -291,7 +412,8 @@ export function SignInScreen(): React.JSX.Element {
               label="Continue with Google"
               variant="secondary"
               onPress={onGooglePress}
-              loading={isBusy}
+              loading={busyAction === 'google'}
+              disabled={isBusy}
               fullWidth
               testID="button-google-sign-in"
             />
@@ -311,7 +433,8 @@ export function SignInScreen(): React.JSX.Element {
               label="Demo sign-in"
               variant="outline"
               onPress={onDemoPress}
-              loading={isBusy}
+              loading={busyAction === 'demo'}
+              disabled={isBusy}
               fullWidth
               testID="button-demo-sign-in"
             />
@@ -372,11 +495,13 @@ export function SignInScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  body: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  // `flex: 1` inside a ScrollView's content container collapses to zero height,
-  // so the scrolling variant sizes to its content instead.
-  bodyScrolling: { alignItems: 'center', paddingTop: 24, paddingBottom: 24 },
+  // `flexGrow` rather than `flex: 1`: inside a ScrollView, flex collapses to
+  // zero height, while flexGrow fills the screen when the content is short and
+  // still lets it scroll when the keyboard makes it tall.
+  centred: { flexGrow: 1, justifyContent: 'center' },
+  body: { alignItems: 'center', paddingTop: 24, paddingBottom: 24 },
   actions: { paddingBottom: 24 },
   divider: { alignItems: 'center' },
+  suggestion: { alignSelf: 'flex-start', marginTop: 4 },
   links: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });

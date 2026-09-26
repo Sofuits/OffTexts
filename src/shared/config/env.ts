@@ -22,6 +22,8 @@ type Extra = {
   enableGoogleAuth?: string | boolean;
   sentryDsn?: string;
   enableAnalytics?: string | boolean;
+  authResendCooldownSeconds?: string;
+  authPasswordRequirements?: string;
   demoEmail?: string;
   demoPassword?: string;
 };
@@ -30,6 +32,14 @@ const extra = (Constants.expoConfig?.extra ?? {}) as Extra;
 
 const readString = (value: string | undefined): string =>
   typeof value === 'string' ? value.trim() : '';
+
+/** A whole number of seconds above zero, or null — never a made-up default. */
+const readPositiveSeconds = (value: string | undefined): number | null => {
+  const text = readString(value);
+  if (!/^\d+$/.test(text)) return null;
+  const seconds = Number(text);
+  return seconds > 0 ? seconds : null;
+};
 
 const readBoolean = (value: string | boolean | undefined, fallback: boolean): boolean => {
   if (typeof value === 'boolean') return value;
@@ -138,6 +148,29 @@ export const env = {
   sentryDsn: readString(extra.sentryDsn),
   environment,
   enableAnalytics: readBoolean(extra.enableAnalytics, false),
+
+  /**
+   * How long the "Send a new code" button waits after an email goes out.
+   *
+   * It mirrors the Supabase Dashboard's per-member minimum interval between
+   * emails, and is config rather than a constant because that figure lives in
+   * the dashboard, not in this repository — a number typed in here would be a
+   * guess the day someone changes the setting.
+   *
+   * Null when unset. The screen then shows no countdown of its own and waits
+   * only when Supabase refuses a resend, for as long as Supabase says.
+   */
+  authResendCooldownSeconds: readPositiveSeconds(extra.authResendCooldownSeconds),
+
+  /**
+   * Which characters a password must contain, exactly as the Supabase
+   * Dashboard is set: Authentication → Sign In / Providers → Email → Password
+   * requirements. Blank means "no required characters".
+   *
+   * Kept as the raw string; the composition root checks it against the values
+   * Supabase allows, so a typo is reported rather than silently ignored.
+   */
+  authPasswordRequirements: readString(extra.authPasswordRequirements),
   isDevelopment: environment === 'development',
   isProduction: environment === 'production',
 } as const;

@@ -47,7 +47,27 @@ export interface AuthRepository {
 
   signUpWithPassword(credentials: Credentials): Promise<Result<Session | null>>;
 
-  /** Emails a one-time link. Resolves when the mail is sent, not when it is clicked. */
+  /**
+   * Confirms a new account with the code emailed at sign-up.
+   *
+   * Resolves with a session: a correct code both verifies the address and
+   * signs the member in, so they are not asked for the password they typed a
+   * minute ago.
+   */
+  verifySignUpCode(email: string, code: string): Promise<Result<Session>>;
+
+  /**
+   * Emails the sign-up code again.
+   *
+   * Rate limited by the server. A refusal comes back as a `rateLimited` error,
+   * carrying `retryAfterSeconds` when the server said how long to wait.
+   */
+  resendSignUpCode(email: string): Promise<Result<void>>;
+
+  /**
+   * Not offered by the app. Kept because the interface predates the decision
+   * and removing it is a separate change.
+   */
   sendMagicLink(email: string): Promise<Result<void>>;
 
   /**
@@ -60,5 +80,32 @@ export interface AuthRepository {
    */
   sendPasswordReset(email: string): Promise<Result<void>>;
 
+  /**
+   * Checks the 6-digit code from a password reset email.
+   *
+   * A correct code signs the member in — that session exists only so they can
+   * choose a new password, which the caller must ask for next.
+   */
+  verifyRecoveryCode(email: string, code: string): Promise<Result<void>>;
+
+  /**
+   * Starts a session from the link in a password reset email.
+   *
+   * `link` is the whole URL the app was opened with. On success the member is
+   * signed in, and the caller must send them to choose a new password before
+   * anything else — the session exists only so that they can.
+   */
+  beginPasswordRecovery(link: string): Promise<Result<void>>;
+
+  /** Sets a new password for the signed-in member. */
+  updatePassword(password: string): Promise<Result<void>>;
+
+  /**
+   * Ends EVERY session the member has — this device and all others.
+   *
+   * Other devices find out when they next refresh their token; until then an
+   * access token they already hold keeps working until it expires. The local
+   * session is removed even when the server cannot be reached.
+   */
   signOut(): Promise<Result<void>>;
 }

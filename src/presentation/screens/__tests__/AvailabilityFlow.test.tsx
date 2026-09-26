@@ -10,8 +10,7 @@ import {
 import { createTestContainer } from '@/app/di';
 import { RootNavigator } from '@/app/navigation';
 import { AppProviders, createTestQueryClient } from '@/app/providers';
-import type { AuthState, Session } from '@/domain/entities';
-import { success, type AuthRepository } from '@/domain/repositories';
+import { InMemoryAuthRepository } from '@/data/repositories';
 import { env } from '@/shared/config';
 import { toDateKey } from '@/shared/utils/calendar';
 
@@ -33,29 +32,13 @@ import { toDateKey } from '@/shared/utils/calendar';
 configure({ asyncUtilTimeout: 10_000 });
 jest.setTimeout(60_000);
 
-const SESSION: Session = {
-  user: { id: 'user-1', email: 'you@example.com', profileId: 'person-1' },
-};
-
-function signedIn(): AuthRepository {
-  const state: AuthState = { status: 'signedIn', session: SESSION };
-  return {
-    getSession: async () => success(SESSION),
-    observeAuthState: (listener) => {
-      listener(state);
-      return () => {};
-    },
-    signInWithOAuth: async () => success(SESSION),
-    signInWithPassword: async () => success(SESSION),
-    signUpWithPassword: async () => success(SESSION),
-    sendMagicLink: async () => success(undefined),
-    sendPasswordReset: async () => success(undefined),
-    signOut: async () => success(undefined),
-  };
-}
-
 function renderApp() {
-  const container = createTestContainer({ repositories: { auth: signedIn() } });
+  // The app's own in-memory auth, started signed in, rather than a hand-rolled
+  // fake: the AuthRepository interface grows (verification codes, password
+  // recovery), and a fake that lists its methods falls behind it.
+  const container = createTestContainer({
+    repositories: { auth: new InMemoryAuthRepository({ startSignedIn: true }) },
+  });
   return render(
     <AppProviders container={container} queryClient={createTestQueryClient()}>
       <RootNavigator />

@@ -380,12 +380,45 @@ export class InMemoryAuthRepository implements AuthRepository {
     return this.signInWithPassword(credentials);
   }
 
+  /**
+   * Sign-up above returns a session straight away, so offline development
+   * never reaches the code screen. These exist to satisfy the interface; the
+   * failure paths are tested with repositories written in the test files.
+   */
+  async verifySignUpCode(email: string): Promise<Result<Session>> {
+    return this.signInWithPassword({ email, password: '' });
+  }
+
+  async resendSignUpCode(): Promise<Result<void>> {
+    await delay();
+    return success(undefined);
+  }
+
   async sendMagicLink(): Promise<Result<void>> {
     await delay();
     return success(undefined);
   }
 
   async sendPasswordReset(): Promise<Result<void>> {
+    await delay();
+    return success(undefined);
+  }
+
+  async verifyRecoveryCode(): Promise<Result<void>> {
+    await delay();
+    this.session = SEED_SESSION;
+    this.emit();
+    return success(undefined);
+  }
+
+  async beginPasswordRecovery(): Promise<Result<void>> {
+    await delay();
+    this.session = SEED_SESSION;
+    this.emit();
+    return success(undefined);
+  }
+
+  async updatePassword(): Promise<Result<void>> {
     await delay();
     return success(undefined);
   }

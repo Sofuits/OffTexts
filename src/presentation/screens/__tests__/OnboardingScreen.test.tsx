@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { Alert, type AlertButton } from 'react-native';
 
 import { createTestContainer } from '@/app/di';
 import { AppProviders, createTestQueryClient } from '@/app/providers';
@@ -66,6 +67,7 @@ function renderWizard() {
 
   return {
     ...repositories,
+    container,
     ...render(
       <AppProviders container={container} queryClient={createTestQueryClient()}>
         <OnboardingScreen />
@@ -84,6 +86,42 @@ function enterBirthday(): void {
 }
 
 describe('OnboardingScreen', () => {
+  describe('back from the first question', () => {
+    afterEach(() => jest.restoreAllMocks());
+
+    it('offers to sign out, and signs out when confirmed', () => {
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      const { container } = renderWizard();
+      const signOut = jest
+        .spyOn(container.useCases.signOut, 'execute')
+        .mockResolvedValue({ ok: true, value: undefined });
+
+      fireEvent.press(screen.getByTestId('button-onboarding-back'));
+
+      // Asked first: leaving loses every answer so far.
+      expect(alert).toHaveBeenCalledTimes(1);
+      expect(signOut).not.toHaveBeenCalled();
+
+      const buttons = alert.mock.calls[0]?.[2] as AlertButton[];
+      buttons.find((button) => button.style === 'destructive')?.onPress?.();
+
+      expect(signOut).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays put when the member cancels', () => {
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      const { container } = renderWizard();
+      const signOut = jest.spyOn(container.useCases.signOut, 'execute');
+
+      fireEvent.press(screen.getByTestId('button-onboarding-back'));
+      const buttons = alert.mock.calls[0]?.[2] as AlertButton[];
+      buttons.find((button) => button.style === 'cancel')?.onPress?.();
+
+      expect(signOut).not.toHaveBeenCalled();
+      expect(screen.getByText('What brings you to Offtexts?')).toBeTruthy();
+    });
+  });
+
   it('starts on the purpose question with the next button disabled', () => {
     renderWizard();
 
@@ -265,9 +303,10 @@ describe('OnboardingScreen', () => {
     expect(screen.getByTestId('input-name').props.value).toBe('Saksham');
 
     fireEvent.press(screen.getByTestId('button-onboarding-back'));
-    // Back on the first step, where there is no back arrow at all.
+    // Back on the first step. Its back arrow leaves onboarding by signing out,
+    // which is covered in "back from the first question".
     expect(screen.getByText('What brings you to Offtexts?')).toBeTruthy();
-    expect(screen.queryByTestId('button-onboarding-back')).toBeNull();
+    expect(screen.getByTestId('button-onboarding-back')).toBeTruthy();
   });
 
   it('drops a stale answer when the purpose changes', () => {

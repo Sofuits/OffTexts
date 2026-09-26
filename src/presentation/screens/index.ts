@@ -1,4 +1,10 @@
-export { SignInScreen, SplashScreen } from './auth';
+export {
+  ResetPasswordCodeScreen,
+  SetNewPasswordScreen,
+  SignInScreen,
+  SplashScreen,
+  VerifyEmailScreen,
+} from './auth';
 export {
   AvailabilityChooseDateScreen,
   AvailabilityDateSelectedScreen,
