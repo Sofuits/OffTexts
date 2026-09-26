@@ -90,7 +90,7 @@ export function RootNavigator(): React.JSX.Element {
           contentStyle: { backgroundColor: theme.colors.background },
         }}
       >
-{/*
+        {/*
           Conditional groups, not navigate() calls.
 
           React Navigation unmounts the branch that is no longer rendered, so
@@ -111,11 +111,11 @@ export function RootNavigator(): React.JSX.Element {
           options={{ headerShown: false }}
         />
 
-<Stack.Screen
-  name="AvailabilitySelectDates"
-  component={AvailabilitySelectDatesScreen}
-  options={{ headerShown: false }}
-/>
+        <Stack.Screen
+          name="AvailabilitySelectDates"
+          component={AvailabilitySelectDatesScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="EditProfile"
           component={EditProfileScreen}

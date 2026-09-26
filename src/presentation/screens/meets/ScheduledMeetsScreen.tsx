@@ -73,15 +73,13 @@ export function ScheduledMeetsScreen({ navigation }: Props): React.JSX.Element {
       />
       <Spacer size={24} />
       <Pressable
-  onPress={() => navigation.navigate('AvailabilityStart')}
-  style={styles.availabilityButton}
->
-  <Text style={styles.availabilityButtonText}>
-    Plan a meet
-  </Text>
-</Pressable>
+        onPress={() => navigation.navigate('AvailabilityStart')}
+        style={styles.availabilityButton}
+      >
+        <Text style={styles.availabilityButtonText}>Plan a meet</Text>
+      </Pressable>
 
-<Spacer size={24} />
+      <Spacer size={24} />
 
       <SectionHeader title="Matches" subtitle="You both said yes. Nobody else can see this." />
       <Spacer size={12} />

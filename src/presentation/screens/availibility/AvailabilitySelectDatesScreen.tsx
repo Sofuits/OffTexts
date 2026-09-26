@@ -1,11 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -26,11 +20,11 @@ function toDateKey(date: Date): string {
   ].join('-');
 }
 
-function getMonthDays(year: number, month: number): Array<Date | null> {
+function getMonthDays(year: number, month: number): (Date | null)[] {
   const firstDay = new Date(year, month, 1);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const days: Array<Date | null> = [];
+  const days: (Date | null)[] = [];
 
   for (let index = 0; index < firstDay.getDay(); index += 1) {
     days.push(null);
@@ -53,16 +47,10 @@ export function AvailabilitySelectDatesScreen(): React.JSX.Element {
     new Date(today.getFullYear(), today.getMonth(), 1),
   );
 
-  const [selectedDates, setSelectedDates] = useState<Set<string>>(
-    new Set(),
-  );
+  const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
 
   const monthDays = useMemo(
-    () =>
-      getMonthDays(
-        visibleMonth.getFullYear(),
-        visibleMonth.getMonth(),
-      ),
+    () => getMonthDays(visibleMonth.getFullYear(), visibleMonth.getMonth()),
     [visibleMonth],
   );
 
@@ -71,18 +59,10 @@ export function AvailabilitySelectDatesScreen(): React.JSX.Element {
     year: 'numeric',
   });
 
-  const currentMonth = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    1,
-  );
+  const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
   const goToPreviousMonth = () => {
-    const previousMonth = new Date(
-      visibleMonth.getFullYear(),
-      visibleMonth.getMonth() - 1,
-      1,
-    );
+    const previousMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1);
 
     if (previousMonth >= currentMonth) {
       setVisibleMonth(previousMonth);
@@ -90,13 +70,7 @@ export function AvailabilitySelectDatesScreen(): React.JSX.Element {
   };
 
   const goToNextMonth = () => {
-    setVisibleMonth(
-      new Date(
-        visibleMonth.getFullYear(),
-        visibleMonth.getMonth() + 1,
-        1,
-      ),
-    );
+    setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1));
   };
 
   const toggleDate = (date: Date) => {
@@ -132,10 +106,7 @@ export function AvailabilitySelectDatesScreen(): React.JSX.Element {
         },
       ]}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text
           style={[
             styles.title,
@@ -228,12 +199,7 @@ export function AvailabilitySelectDatesScreen(): React.JSX.Element {
         <View style={styles.calendar}>
           {monthDays.map((date, index) => {
             if (!date) {
-              return (
-                <View
-                  key={`empty-${index}`}
-                  style={styles.dayCell}
-                />
-              );
+              return <View key={`empty-${index}`} style={styles.dayCell} />;
             }
 
             const dateKey = toDateKey(date);
@@ -262,9 +228,7 @@ export function AvailabilitySelectDatesScreen(): React.JSX.Element {
                     style={[
                       styles.dayText,
                       {
-                        color: selected
-                          ? theme.colors.surface
-                          : theme.colors.textPrimary,
+                        color: selected ? theme.colors.surface : theme.colors.textPrimary,
                       },
                     ]}
                   >
@@ -283,10 +247,7 @@ export function AvailabilitySelectDatesScreen(): React.JSX.Element {
         style={[
           styles.button,
           {
-            backgroundColor:
-              selectedDates.size > 0
-                ? theme.colors.primary
-                : theme.colors.border,
+            backgroundColor: selectedDates.size > 0 ? theme.colors.primary : theme.colors.border,
           },
         ]}
       >
