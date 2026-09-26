@@ -67,6 +67,14 @@ export type OAuthOutcome =
  * `offtexts://auth/callback` in a development or store build, and
  * `exp://<this computer>:8081/--/auth/callback` in Expo Go.
  *
+ * The path is passed WITHOUT a leading slash, and that matters. In a build,
+ * `createURL('/auth/callback')` returns `offtexts:///auth/callback` — three
+ * slashes — which is a different string from the iPhone's
+ * `offtexts://auth/callback`, so it needs its own allow-list entry and fails
+ * silently without one. `createURL('auth/callback')` returns the same address
+ * as the iPhone. (Expo Go is unaffected either way: it adds `/--/` itself.)
+ * `deepLinks.test.ts` runs the real expo-linking to keep this true.
+ *
  * Whichever it is MUST BE LISTED in Supabase under Authentication → URL
  * Configuration → Redirect URLs. When it is not, Supabase does not fail: it
  * sends the browser — with the new session in its address — to the Site URL
@@ -79,14 +87,17 @@ export function oauthRedirect(): string {
     const scheme = Array.isArray(configured) ? configured[0] : configured;
     if (scheme) return `${scheme}://auth/callback`;
   }
-  return Linking.createURL('/auth/callback');
+  return Linking.createURL('auth/callback');
 }
 
 /**
  * Where a password reset email should send the member back to.
  *
  * Built from the scheme in app.config.ts by expo-linking, exactly like the
- * OAuth callback above, so the two cannot drift apart. It lives in this file
+ * OAuth callback above, so the two cannot drift apart: `offtexts://auth/reset`
+ * in a development or store build, on either platform, and
+ * `exp://<this computer>:8081/--/auth/reset` in Expo Go. No leading slash, for
+ * the reason given on `oauthRedirect`. It lives in this file
  * because this is already the one place in the data path that is allowed to
  * touch a native module — every other file in `data/` has to load in a browser
  * for the admin portal, and expo-linking does not.
@@ -97,7 +108,7 @@ export function oauthRedirect(): string {
  * their phone and lands on a web page instead of in the app.
  */
 export function passwordResetRedirect(): string {
-  return Linking.createURL('/auth/reset');
+  return Linking.createURL('auth/reset');
 }
 
 export async function runOAuthFlow(

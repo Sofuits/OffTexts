@@ -22,8 +22,11 @@ jest.mock('expo-web-browser', () => ({
 }));
 
 // What expo-linking builds inside Expo Go: an address on the developer's machine.
+// Like the real one, it drops a leading slash from the path before adding
+// `/--/`, so this mock cannot hide a path passed in the wrong form.
+// deepLinks.test.ts checks the real expo-linking.
 jest.mock('expo-linking', () => ({
-  createURL: (path: string) => `exp://192.168.0.2:8081/--${path}`,
+  createURL: (path: string) => `exp://192.168.0.2:8081/--/${path.replace(/^\//, '')}`,
 }));
 
 jest.mock('expo-constants', () => ({
