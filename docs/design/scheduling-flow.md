@@ -25,6 +25,14 @@ nothing in the schema holds that today. It is a migration, not a restyle.
 in the admin portal (§5). Nothing about a venue appears anywhere in the
 member's flow.
 
+### One meaning for "confirmed"
+
+**Confirmed means a table is booked**, and nothing else — `meets.status =
+'confirmed'`, set when staff assign a café (§7). The members reaching the same
+day and time is **agreed**: the session's stage is `agreed`, and the meeting it
+creates is `pending` until staff book a table. No screen, stage, column or
+function in this flow says "confirmed" for anything short of a booked table.
+
 ### The table that looks like it would help, and does not
 
 `public.availability` exists, but it holds **recurring weekly windows** —
@@ -39,18 +47,18 @@ answers a different question, and conflating the two will break matching.
 Exactly the ten mockup steps. There is no café screen, and no screen names a
 café.
 
-| #   | Screen              | What it does                                                                                                                                                                                     |
-| --- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | **SchedulingStart** | From a match. Explains the steps. The mockup puts a heart between the two avatars — use the café cup instead. Offtexts serves four purposes; only one is romantic.                               |
-| 2   | **SelectDates**     | Month calendar, multi-select, spanning weeks or months. Chips below for what is picked.                                                                                                          |
-| 3   | **SharedDates**     | Two-column table, you and them. Green row = both free. Your own column stays editable.                                                                                                           |
-| 4   | **ChooseDay**       | Radio list of the overlap only.                                                                                                                                                                  |
-| 5   | **DayConfirmed**    | Confirmation beat, with a "Change" affordance.                                                                                                                                                   |
-| 6   | **SelectTimes**     | Slot list for the chosen day, multi-select, the city's timezone shown. **Only start times at which at least one partner café in the city is open for the whole meeting** (§4, `bookable_times`). |
-| 7   | **SharedTimes**     | Same two-column table, for times.                                                                                                                                                                |
-| 8   | **ChooseTime**      | Radio list of the overlap. **Choosing confirms the meeting** — its day and time. No café is chosen or assigned here (§4, `choose_time`).                                                         |
-| 9   | **Confirmed**       | The meeting exists. Both members and the admin are notified. **No venue** — not a name, not "to be confirmed", nothing.                                                                          |
-| 10  | **EditScheduling**  | Edit dates · edit times · cancel.                                                                                                                                                                |
+| #   | Screen              | What it does                                                                                                                                                                                                                                                                                          |
+| --- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **SchedulingStart** | From a match. Explains the steps. The mockup puts a heart between the two avatars — use the café cup instead. Offtexts serves four purposes; only one is romantic.                                                                                                                                    |
+| 2   | **SelectDates**     | Month calendar, multi-select, spanning weeks or months. Chips below for what is picked.                                                                                                                                                                                                               |
+| 3   | **SharedDates**     | Two-column table, you and them. Green row = both free. Your own column stays editable.                                                                                                                                                                                                                |
+| 4   | **ChooseDay**       | Radio list of the overlap only.                                                                                                                                                                                                                                                                       |
+| 5   | **DayChosen**       | The chosen day, with a "Change" affordance. The mockup's "Friday, Oct 9 is confirmed!" becomes "…is chosen" — nothing is confirmed yet (§0).                                                                                                                                                          |
+| 6   | **SelectTimes**     | Slot list for the chosen day, multi-select, the city's timezone shown. **Only start times at which at least one partner café in the city is open for the whole meeting** (§4, `bookable_times`).                                                                                                      |
+| 7   | **SharedTimes**     | Same two-column table, for times.                                                                                                                                                                                                                                                                     |
+| 8   | **ChooseTime**      | Radio list of the overlap. **Choosing settles the day and time**: the session becomes `agreed` and the meeting is created. No café is chosen or assigned here (§4, `choose_time`).                                                                                                                    |
+| 9   | **Agreed**          | The day and time are agreed and the meeting exists. Both members and the admin are notified. The mockup's "Meeting confirmed!" must become wording that does not say confirmed — e.g. "It's agreed" — because no table is booked yet (§0). **No venue** — not a name, not "to be confirmed", nothing. |
+| 10  | **EditScheduling**  | Edit dates · edit times · cancel.                                                                                                                                                                                                                                                                     |
 
 Steps 3 and 7 are the same component with different data. Steps 4 and 8 are
 the same component. Build two, use them twice.
@@ -61,7 +69,7 @@ the same component. Build two, use them twice.
 
 ```sql
 create type public.scheduling_stage as enum
-  ('dates', 'times', 'confirmed', 'cancelled');
+  ('dates', 'times', 'agreed', 'cancelled');
 
 create table public.scheduling_sessions (
   id          uuid primary key default gen_random_uuid(),
@@ -72,23 +80,24 @@ create table public.scheduling_sessions (
   chosen_starts_at  time,
   chosen_ends_at    time,
 
-  -- Set only on confirmation. The meeting is the output of this negotiation.
+  -- Set only on agreement. The meeting is the output of this negotiation.
   -- The café is not here: staff set it on the meeting (meets.cafe_id), which
   -- is the one place it lives (§5, §7).
   meet_id           uuid references public.meets (id) on delete set null,
 
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now(),
-  confirmed_at timestamptz,
+  agreed_at    timestamptz,
   cancelled_at timestamptz,
   cancelled_by uuid references public.profiles (id) on delete set null,
 
-  -- Confirmed means the day and the time are agreed and the meeting exists.
-  -- It does NOT mean a café: that comes later, from staff, on the meeting.
-  constraint scheduling_confirmed_has_everything check (
-    (stage <> 'confirmed') or
+  -- Agreed means the day and the time are settled and the meeting exists.
+  -- It does NOT mean a café or a booked table: those come later, from staff,
+  -- on the meeting — and only then is anything "confirmed" (§0).
+  constraint scheduling_agreed_has_everything check (
+    (stage <> 'agreed') or
     (chosen_date is not null and chosen_starts_at is not null
-     and meet_id is not null and confirmed_at is not null)
+     and meet_id is not null and agreed_at is not null)
   ),
   constraint scheduling_cancelled_has_stamp check (
     (stage = 'cancelled') = (cancelled_at is not null)
@@ -126,7 +135,7 @@ create index scheduling_sessions_match_idx on public.scheduling_sessions (match_
 
 Times are stored as `time`, not `timestamptz`, because a slot means "9am in the
 city where they will meet". `meets.scheduled_for` becomes the absolute instant
-at confirmation.
+at agreement.
 
 ### A meeting with no café: nothing to change on `meets`
 
@@ -141,8 +150,8 @@ migration against `meets`**:
   set one.
 - `request_meeting` inserts whatever `p_cafe_id` it is given, including null.
 
-The only constraint that assumed a café at confirmation was this document's
-own `scheduling_confirmed_has_everything`. It lives in migration 0012, which is
+The only constraint that assumed a café was this document's own session
+constraint, now `scheduling_agreed_has_everything`. It lives in migration 0012, which is
 not written yet, so the change is to 0012 as specified above — not a separate
 migration. The session no longer has a `cafe_id` at all: one café per meeting,
 kept on the meeting.
@@ -236,9 +245,9 @@ create policy "date options: delete own" on public.scheduling_date_options
 The same three for `scheduling_time_options`.
 
 **No client-side INSERT or UPDATE on `scheduling_sessions`.** Stage, chosen
-date, chosen time and confirmation are set by the functions in §4 and by
+date, chosen time and agreement are set by the functions in §4 and by
 nothing else — two clients can reach the same slot within the same second, and
-a read-then-write would confirm twice or not at all. Grant `select` only; the
+a read-then-write would create two meetings or none. Grant `select` only; the
 functions that write sessions are `security definer` for exactly that reason.
 
 ### Hardening the security definer functions
@@ -255,7 +264,7 @@ privilege-escalation surface in the project. Every one of them:
   from the session's match, never passed in: the session is loaded
   `for update`, joined to an **active** match the caller is in, and a miss
   raises the same error whether the session does not exist or is someone
-  else's — confirming which would leak that it exists. For the staff function
+  else's — saying which would leak that it exists. For the staff function
   (§7) the check is `public.is_staff()`.
 
 ```sql
@@ -306,7 +315,7 @@ Structural assertions in `supabase/tests/assertions.sql`, behaviour in
   match. The staff function refuses anyone who is not staff.
 - Two concurrent `choose_time` calls on one session produce **one** meeting.
 - `choose_time` creates a meeting with `cafe_id` null, and the session reaches
-  `confirmed` without one — the confirmation constraint no longer requires it.
+  `agreed` without one — the session constraint does not require it.
 - `bookable_times` never returns a start time at which no active partner café
   in the city is open for the whole meeting.
 - `reopen_scheduling` deletes **both** members' time options.
@@ -360,16 +369,16 @@ is available.
 `set search_path = ''` on all of them. **D** = `security definer`, hardened as
 in §3. **I** = `security invoker`, under RLS.
 
-| Function                                               |     | Does                                                                                                                                                                                                                                                                                                                    |
-| ------------------------------------------------------ | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `start_scheduling(p_match_id uuid) → uuid`             | D   | Creates the session, or returns the live one. Refuses if the caller is not in an active match, or if the two members have no shared city with an active partner café (§5).                                                                                                                                              |
-| `set_date_options(p_session_id uuid, p_dates date[])`  | I   | Replaces the caller's dates in one statement. Only while the stage is `dates`.                                                                                                                                                                                                                                          |
-| `choose_date(p_session_id uuid, p_date date)`          | D   | Only if both members marked it. Sets `chosen_date`, stage → `times`.                                                                                                                                                                                                                                                    |
-| `bookable_times(p_session_id uuid) → setof time`       | I   | The start times on `chosen_date` at which at least one active partner café in the shared city is open for the whole meeting. **Opening hours only** — no capacity: nothing is claimed at scheduling time. Invoker: café hours are already readable, and a member can read their own session.                            |
-| `set_time_options(p_session_id uuid, p_starts time[])` | I   | Replaces the caller's times. Only while the stage is `times`.                                                                                                                                                                                                                                                           |
-| `choose_time(p_session_id uuid, p_starts time) → uuid` | D   | **Terminal.** Only if both members marked the time, and it is still in `bookable_times`. Builds the instant in the city's zone (§2); runs the `request_meeting` logic **with no café**; sets the time and `meet_id`; stage → `confirmed`; notifies both members and staff. Returns the meeting id. **Assigns nothing.** |
-| `reopen_scheduling(p_session_id uuid)`                 | D   | Step 10, "Edit dates". From `times` back to `dates`: clears `chosen_date` **and deletes both members' time options**. Refused once confirmed. ("Edit times" needs no function: at `times`, a member edits their options with `set_time_options`.)                                                                       |
-| `cancel_scheduling(p_session_id uuid, p_reason text)`  | D   | Either member. Stage → `cancelled`. If the session was confirmed, cancels its meeting too, and with it any café staff had set.                                                                                                                                                                                          |
+| Function                                               |     | Does                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------ | --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `start_scheduling(p_match_id uuid) → uuid`             | D   | Creates the session, or returns the live one. Refuses if the caller is not in an active match, or if the two members have no shared city with an active partner café (§5).                                                                                                                                           |
+| `set_date_options(p_session_id uuid, p_dates date[])`  | I   | Replaces the caller's dates in one statement. Only while the stage is `dates`.                                                                                                                                                                                                                                       |
+| `choose_date(p_session_id uuid, p_date date)`          | D   | Only if both members marked it. Sets `chosen_date`, stage → `times`.                                                                                                                                                                                                                                                 |
+| `bookable_times(p_session_id uuid) → setof time`       | I   | The start times on `chosen_date` at which at least one active partner café in the shared city is open for the whole meeting. **Opening hours only** — no capacity: nothing is claimed at scheduling time. Invoker: café hours are already readable, and a member can read their own session.                         |
+| `set_time_options(p_session_id uuid, p_starts time[])` | I   | Replaces the caller's times. Only while the stage is `times`.                                                                                                                                                                                                                                                        |
+| `choose_time(p_session_id uuid, p_starts time) → uuid` | D   | **Terminal.** Only if both members marked the time, and it is still in `bookable_times`. Builds the instant in the city's zone (§2); runs the `request_meeting` logic **with no café**; sets the time and `meet_id`; stage → `agreed`; notifies both members and staff. Returns the meeting id. **Assigns nothing.** |
+| `reopen_scheduling(p_session_id uuid)`                 | D   | Step 10, "Edit dates". From `times` back to `dates`: clears `chosen_date` **and deletes both members' time options**. Refused once agreed. ("Edit times" needs no function: at `times`, a member edits their options with `set_time_options`.)                                                                       |
+| `cancel_scheduling(p_session_id uuid, p_reason text)`  | D   | Either member. Stage → `cancelled`. If the session was agreed, cancels its meeting too, and with it any café staff had set.                                                                                                                                                                                          |
 
 `set_date_options`, `set_time_options` and `bookable_times` stay invoker: they
 only touch the caller's own rows or data every member may already read.
@@ -379,7 +388,7 @@ those rights directly.
 
 **Concurrency.** `choose_time` holds the session row `for update` from the
 membership check to the end and re-checks `stage = 'times'` after taking the
-lock; the second of two simultaneous calls waits, sees `confirmed`, and
+lock; the second of two simultaneous calls waits, sees `agreed`, and
 returns the existing `meet_id` rather than creating another.
 
 Views, both `security_invoker`:
@@ -428,8 +437,8 @@ partner café is open then and offers "Change date" (`reopen_scheduling`).
 
 **Nothing about a venue, anywhere in the member's flow:** not step 9, not Meet
 details, not the Meets tab — not a café name, not an area, not "to be
-confirmed". How members learn where to go once staff have chosen is an open
-question (§9) and is **not built** until it is decided.
+confirmed". **The app never shows the café.** Once staff have chosen one, staff
+tell the two members where to go, outside the app (§9).
 
 ### Where cafés come from
 
@@ -505,13 +514,17 @@ then, against whatever is using it.
   walkable with no backend. Mapper, container wiring. Weekdays from the API
   are ISO (7 = Sunday); convert as `toVenue` does.
 - **Presentation:** the screens in §1, `useScheduling*` query hooks, and
-  invalidation of `queryKeys.matching.matches()` and `queryKeys.meets.all` on
-  confirm.
-- **No venue in the member's flow.** The Meets tab (`MeetListItem`) and Meet
-  details render `venueName` / `venueArea` today, and `api_v1.meetings` will
-  return "To be confirmed" for a café-less meeting. Both screens stop rendering
-  venue fields entirely — not hidden when empty, gone — until §9's open
-  question is decided.
+  invalidation of `queryKeys.matching.matches()` and `queryKeys.meets.all`
+  when the session is agreed.
+- **App task — the "To be confirmed" leak. A change to existing screens, and it
+  lands with phase 2.** `api_v1.meetings` returns `venue_name` for every
+  meeting, and for a café-less one that is the column default, "To be
+  confirmed". The Upcoming cards on the Meets tab (`MeetListItem`) and Meet
+  details render `venueName` / `venueArea` today, so the first meeting phase 2
+  creates would show members exactly the venue field this document removes.
+  **Both screens drop the venue row entirely** — not hidden when empty, gone —
+  in the same release as phase 2, not after it. Not new work: it is removing a
+  row from two screens that already exist.
 - **Replaces the preview:** `feature/availability-calendar` has steps 1–5 as a
   placeholder (`DateSharingRepository`, which invents the other member's
   dates). Phase 2 replaces that repository with `SchedulingRepository`, moves
@@ -525,7 +538,7 @@ then, against whatever is using it.
 **No meeting can happen until staff set its café.** The admin portal (separate
 repo) is therefore a dependency of phase 2, not a follow-up. It needs:
 
-- **A queue of confirmed meetings with no café** — `meets` where
+- **A queue of agreed meetings with no café** — `meets` where
   `cafe_id is null` and `status = 'pending'`, earliest `scheduled_for` first,
   with the city, the local date and time, and the two members. A staff-only
   view in `api_v1`, `security_invoker`, following `api_v1.staff_meetings`.
@@ -537,10 +550,11 @@ p_cafe_id uuid)`, security definer, hardened as in §3 with `public.is_staff()`
   checked**, under a lock on the café's row so two staff members cannot fill
   the same last table. It sets `meets.cafe_id` (the `meets_sync_venue` trigger
   fills `venue_name` and `venue_area`) and moves the meeting to `confirmed`
-  with `confirmed_at`.
+  with `confirmed_at` — the one place in the whole flow where anything becomes
+  confirmed, because this is where a table is booked (§0).
 - **A way out** when no café can take it: staff cancel the meeting with a
   reason, which notifies both members.
-- It **does not** tell members the café. That is §9's open question.
+- The app **does not** tell members the café. Staff do, outside it (§9).
 
 ### Seed support
 
@@ -586,14 +600,10 @@ Steps 1–5 are testable on one device. Step 6 is what needs two people.
 
 ## 9. Still open
 
-1. **How do members learn where to go once staff have chosen the café?** Most
-   likely the café appears in Meet details at that point, with a notification.
-   **Not built either way until the product owner confirms.** Until then the
-   member's flow shows no venue at all (§5, §7).
-2. **Expiry.** A negotiation nobody finishes should not sit open forever.
+1. **Expiry.** A negotiation nobody finishes should not sit open forever.
    Recommend 14 days, then auto-cancel with a notification. The same question
-   applies to a confirmed meeting staff never assign a café to.
-3. **Café discovery (§5).** The curated partner list is the only source staff
+   applies to an agreed meeting staff never assign a café to.
+2. **Café discovery (§5).** The curated partner list is the only source staff
    choose from. Whether to add OSM or Places discovery for a map view is a
    product call.
 
@@ -604,6 +614,19 @@ before phase 2 can go live.
 **Must be resolved before launch, not a decision:** the real Pune business
 names in `src/shared/constants/seedData.ts` (§5).
 
-Decided: staff choose the café, after the members agree the time; the app
-assigns nothing (§5). The instant is built in the city's timezone (§2). The
-app collects no member location (§6).
+### Decided
+
+- **Staff choose the café**, after the members agree the day and time; the app
+  assigns nothing (§5).
+- **The app never shows the café, anywhere.** Staff tell the two members where
+  to go, outside the app. If staff have no channel to reach members, that is an
+  operational gap to close, not a question for this spec.
+- **"Confirmed" means a table is booked.** The session stage is `agreed`; the
+  meeting is `pending` until staff book (§0).
+- **Timezone:** the city's, with an assertion that a city's partner cafés share
+  one (§2).
+- **Capacity** is checked when staff assign a café, under a lock on the café's
+  row, not at scheduling time (§5, §7).
+- **Staff can cancel** a meeting no café can take, with a reason; both members
+  are notified (§7).
+- **No member location** is collected (§6).
