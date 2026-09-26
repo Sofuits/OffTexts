@@ -6,13 +6,14 @@ import {
   Avatar,
   Badge,
   Button,
+  ProfileSummary,
   QueryBoundary,
   ScreenContainer,
   SectionHeader,
   Spacer,
 } from '@/presentation/components';
 import { MEET_INTENT_LABELS } from '@/domain/entities';
-import { useProfileById } from '@/presentation/hooks';
+import { useProfileById, useProfileDetailsFor } from '@/presentation/hooks';
 import { useTheme } from '@/presentation/hooks/useTheme';
 import type { RootStackScreenProps } from '@/app/navigation/types';
 
@@ -29,6 +30,9 @@ export function PersonProfileScreen({ route, navigation }: Props): React.JSX.Ele
   const theme = useTheme();
   const { personId, personName, matchId } = route.params;
   const profile = useProfileById(personId);
+  // Optional: the profile shows without it. A member who shared nothing, or a
+  // request that failed, costs the details sections and nothing else.
+  const details = useProfileDetailsFor(personId);
 
   return (
     <ScreenContainer testID="screen-person-profile" edges={['bottom']}>
@@ -69,13 +73,6 @@ export function PersonProfileScreen({ route, navigation }: Props): React.JSX.Ele
             </View>
 
             <Spacer size={24} />
-            <SectionHeader title="About" />
-            <Spacer size={8} />
-            <AppText variant="body" color="textSecondary">
-              {person.bio ?? person.headline}
-            </AppText>
-
-            <Spacer size={24} />
             <SectionHeader title="Looking for" />
             <Spacer size={12} />
             <View style={[styles.tags, { gap: theme.spacing[8] }]}>
@@ -84,14 +81,24 @@ export function PersonProfileScreen({ route, navigation }: Props): React.JSX.Ele
               ))}
             </View>
 
-            <Spacer size={24} />
-            <SectionHeader title="Interests" />
-            <Spacer size={12} />
-            <View style={[styles.tags, { gap: theme.spacing[8] }]}>
-              {person.interests.map((interest) => (
-                <Badge key={interest} label={interest} />
-              ))}
-            </View>
+            {/* Only what they chose to share: hidden answers, and answers for
+                a purpose they are not here for now, are removed on the server
+                before they reach this phone. */}
+            <ProfileSummary
+              person={person}
+              details={details.data ?? null}
+              viewer="other"
+              sections={[
+                'Basics',
+                'Location',
+                'Education & work',
+                'Lifestyle',
+                'Dating',
+                'Life partner',
+                'Co-founder',
+                'About you',
+              ]}
+            />
 
             <Spacer size={32} />
             {/*

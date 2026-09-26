@@ -14,6 +14,7 @@ import {
   AvailabilityStartScreen,
   DiscoverScreen,
   EditProfileScreen,
+  EditProfileSectionScreen,
   MeetDetailsScreen,
   PersonProfileScreen,
   RatingsReviewsScreen,
@@ -120,6 +121,13 @@ export function RootNavigator(): React.JSX.Element {
           name="EditProfile"
           component={EditProfileScreen}
           options={{ title: 'Edit profile' }}
+        />
+        <Stack.Screen
+          name="EditProfileSection"
+          component={EditProfileSectionScreen}
+          // The step layout draws its own back arrow and progress, exactly as
+          // in onboarding; a navigation header on top would be a second one.
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="PersonProfile"

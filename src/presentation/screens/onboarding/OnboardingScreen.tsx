@@ -219,15 +219,15 @@ function Wizard({
     [steps],
   );
 
-  const goTo = useCallback(
-    (key: string) => {
-      const target = indexOf(key);
+  const goToSection = useCallback(
+    (section: string) => {
+      const target = steps.findIndex((candidate) => candidate.section === section);
       if (target < 0) return;
       setEditing(true);
       setError(null);
       setIndex(target);
     },
-    [indexOf],
+    [steps],
   );
 
   const showFieldError = useCallback(
@@ -386,7 +386,7 @@ function Wizard({
       {...(step.skippable && !editing ? { onSkip: () => void save(answered) } : {})}
       error={error}
     >
-      <Body draft={draft} patch={patch} goTo={goTo} />
+      <Body draft={draft} patch={patch} goToSection={goToSection} />
     </OnboardingStep>
   );
 }

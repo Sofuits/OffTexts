@@ -3,6 +3,7 @@ import type { CompositeScreenProps, NavigatorScreenParams } from '@react-navigat
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { MatchId, MeetId, PersonId } from '@/domain/entities';
+import type { ProfileSection } from '@/presentation/components';
 
 /**
  * Navigation types.
@@ -36,6 +37,11 @@ export type RootStackParamList = {
    */
   SignIn: undefined;
   EditProfile: undefined;
+  /**
+   * One section of the profile, edited with the same questions onboarding
+   * asked. `section` is an onboarding step's `section`, e.g. "Lifestyle".
+   */
+  EditProfileSection: { section: ProfileSection };
   /**
    * `matchId` is present only when arriving from a match.
    *

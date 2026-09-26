@@ -36,6 +36,7 @@ export const queryKeys = {
   profileDetails: {
     all: ['profileDetails'] as const,
     mine: () => [...queryKeys.profileDetails.all, 'mine'] as const,
+    forPerson: (id: string) => [...queryKeys.profileDetails.all, 'forPerson', id] as const,
   },
   preferences: {
     all: ['preferences'] as const,

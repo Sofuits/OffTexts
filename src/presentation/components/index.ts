@@ -25,6 +25,11 @@ export { PasswordChecklist } from './inputs/PasswordChecklist';
 export { PasswordField, type PasswordFieldProps } from './inputs/PasswordField';
 export { TextField, type TextFieldProps } from './inputs/TextField';
 export { ScreenContainer, type ScreenContainerProps } from './layouts/ScreenContainer';
+export {
+  ProfileSummary,
+  type ProfileSection,
+  type ProfileSummaryProps,
+} from './profile/ProfileSummary';
 export { ScreenHeader, type ScreenHeaderProps } from './layouts/ScreenHeader';
 export { Chip, ChipGroup, type ChipProps } from './onboarding/Chip';
 export { AgeRangeField, type AgeRangeFieldProps } from './onboarding/AgeRangeField';

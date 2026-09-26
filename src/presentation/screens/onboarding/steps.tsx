@@ -75,8 +75,8 @@ export type StepFacts = {
 export type StepContext = {
   draft: OnboardingDraft;
   patch: (update: Partial<OnboardingDraft>) => void;
-  /** Jumps to a step by key. Used by the preview's "Edit" links. */
-  goTo: (key: string) => void;
+  /** Opens a section for editing, from its first step. Used by the preview's Edit links. */
+  goToSection: (section: string) => void;
 };
 
 export type StepConfig = {

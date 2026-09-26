@@ -9,6 +9,7 @@ import {
   Button,
   OfflineBanner,
   PhotoGrid,
+  ProfileSummary,
   QueryBoundary,
   ScreenContainer,
   ScreenHeader,
@@ -18,12 +19,20 @@ import {
 import {
   GENDER_PLURAL_LABELS,
   MEET_INTENT_LABELS,
+  missingCategoryAnswer,
   moderationSummary,
   type Person,
   type Preferences,
+  type ProfileDetails,
 } from '@/domain/entities';
+import type { ProfileSection } from '@/presentation/components';
 import { useUseCases } from '@/app/di';
-import { useMyPreferences, useMyProfile, usePhotoUpload } from '@/presentation/hooks';
+import {
+  useMyPreferences,
+  useMyProfile,
+  useMyProfileDetails,
+  usePhotoUpload,
+} from '@/presentation/hooks';
 import { useTheme } from '@/presentation/hooks/useTheme';
 import type { BottomTabScreenPropsFor } from '@/app/navigation/types';
 import { toSentenceList } from '@/shared/utils/helpers';
@@ -57,12 +66,17 @@ export function ProfileScreen({ navigation }: Props): React.JSX.Element {
   const theme = useTheme();
   const profile = useMyProfile();
   const preferences = useMyPreferences();
+  const details = useMyProfileDetails();
   const photos = usePhotoUpload();
   const { signOut } = useUseCases();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const goToEdit = useCallback(() => navigation.navigate('EditProfile'), [navigation]);
   const goToBrowse = useCallback(() => navigation.navigate('Browse'), [navigation]);
+  const editSection = useCallback(
+    (section: ProfileSection) => navigation.navigate('EditProfileSection', { section }),
+    [navigation],
+  );
 
   /**
    * Signing out does not navigate. The auth subscription changes the state and
@@ -206,28 +220,19 @@ export function ProfileScreen({ navigation }: Props): React.JSX.Element {
             </QueryBoundary>
 
             <Spacer size={32} />
-            <SectionHeader title="About you" />
-            <Spacer size={12} />
-            {person.bio ? (
-              <AppText variant="body" color="textSecondary">
-                {person.bio}
-              </AppText>
-            ) : (
-              <AppText variant="body" color="textDisabled">
-                Nothing here yet. A few lines helps more than another photo.
-              </AppText>
-            )}
-
-            {person.interests.length > 0 ? (
-              <>
-                <Spacer size={16} />
-                <View style={[styles.tagsLeft, { gap: theme.spacing[8] }]}>
-                  {person.interests.map((interest) => (
-                    <Badge key={interest} label={interest} />
-                  ))}
-                </View>
-              </>
-            ) : null}
+            <SectionHeader
+              title="Your details"
+              subtitle="Everything from your profile. Tap Edit to change a section."
+            />
+            <QueryBoundary
+              isLoading={details.isPending}
+              error={details.error}
+              data={details.data}
+              onRetry={details.refetch}
+              isEmpty={() => false}
+            >
+              {(answers) => <YourDetails person={person} details={answers} onEdit={editSection} />}
+            </QueryBoundary>
 
             <Spacer size={32} />
             <Pressable
@@ -275,6 +280,87 @@ export function ProfileScreen({ navigation }: Props): React.JSX.Element {
         )}
       </QueryBoundary>
     </ScreenContainer>
+  );
+}
+
+/** The category section that asks a missing required answer. */
+const SECTION_FOR_FIELD: Partial<Record<keyof ProfileDetails, ProfileSection>> = {
+  relationshipGoal: 'Dating',
+  marriageTimeline: 'Life partner',
+  maritalStatus: 'Life partner',
+  cofounderRole: 'Co-founder',
+  founderCommitment: 'Co-founder',
+  seekingSkills: 'Co-founder',
+};
+
+/**
+ * The member's own profile, section by section, each one editable.
+ *
+ * Above it, when the purpose they are here for is missing an answer it
+ * requires, a prompt to go and give it. That happens to two kinds of member:
+ * everybody who finished onboarding before the purpose questions existed, and
+ * anybody who has since added a purpose in the profile editor.
+ */
+function YourDetails({
+  person,
+  details,
+  onEdit,
+}: {
+  person: Person;
+  details: ProfileDetails;
+  onEdit: (section: ProfileSection) => void;
+}): React.JSX.Element {
+  const theme = useTheme();
+  const missing = missingCategoryAnswer(person.intents, details);
+  const missingSection = missing ? SECTION_FOR_FIELD[missing.field] : undefined;
+
+  return (
+    <>
+      {missing && missingSection ? (
+        <View
+          style={[
+            styles.card,
+            {
+              marginTop: theme.spacing[16],
+              backgroundColor: theme.colors.card,
+              borderRadius: theme.radii.lg,
+              borderColor: theme.colors.warning,
+              padding: theme.spacing[16],
+            },
+          ]}
+          testID="category-prompt"
+        >
+          <AppText variant="bodyStrong">{`Finish your ${missingSection.toLowerCase()} answers`}</AppText>
+          <AppText variant="caption" color="textSecondary" style={{ marginTop: theme.spacing[4] }}>
+            {missing.message}
+          </AppText>
+          <Spacer size={12} />
+          <Button
+            label="Answer now"
+            size="sm"
+            onPress={() => onEdit(missingSection)}
+            testID="button-answer-category"
+          />
+        </View>
+      ) : null}
+
+      <ProfileSummary
+        person={person}
+        details={details}
+        viewer="self"
+        sections={[
+          'Basics',
+          'Location',
+          'Education & work',
+          'Lifestyle',
+          'Dating',
+          'Life partner',
+          'Co-founder',
+          'About you',
+        ]}
+        onEdit={onEdit}
+      />
+    </>
   );
 }
 

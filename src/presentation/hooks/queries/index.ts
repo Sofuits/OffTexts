@@ -10,6 +10,6 @@ export { useCancelMeet, useMeet, useRequestMeet, useScheduledMeets } from './use
 export { useAddPhoto, useMyPhotos, useRemovePhoto, useSetPhotoOrder } from './usePhotos';
 export { useMyPreferences, useUpdateMyPreferences } from './usePreferences';
 export { useMyProfile, useProfileById, useUpdateMyProfile } from './useProfile';
-export { useMyProfileDetails } from './useProfileDetails';
+export { useMyProfileDetails, useProfileDetailsFor } from './useProfileDetails';
 export { useReviewsForMeet, useSubmitReview } from './useReviews';
 export { useVenues } from './useVenues';

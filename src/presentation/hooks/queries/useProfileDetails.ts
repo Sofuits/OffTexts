@@ -20,3 +20,23 @@ export function useMyProfileDetails(): UseQueryResult<ProfileDetails, Error> {
     queryFn: async () => unwrap(await profileDetails.getMyDetails()),
   });
 }
+
+/**
+ * Another member's common profile, as they have chosen to show it.
+ *
+ * Null when there is nothing to show — not verified, not finished onboarding,
+ * or never filled in. Hidden answers and answers for any purpose other than
+ * their current one never reach the phone: `profile_details_for()` removes
+ * them on the server.
+ */
+export function useProfileDetailsFor(
+  id: string | undefined,
+): UseQueryResult<ProfileDetails | null, Error> {
+  const { profileDetails } = useRepositories();
+
+  return useQuery({
+    queryKey: queryKeys.profileDetails.forPerson(id ?? ''),
+    queryFn: async () => unwrap(await profileDetails.getDetailsFor(id as string)),
+    enabled: Boolean(id),
+  });
+}

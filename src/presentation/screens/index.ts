@@ -13,6 +13,7 @@ export { ScheduledMeetsScreen } from './meets/ScheduledMeetsScreen';
 export { OnboardingScreen } from './onboarding';
 export { PersonProfileScreen } from './person/PersonProfileScreen';
 export { EditProfileScreen } from './profile/EditProfileScreen';
+export { EditProfileSectionScreen } from './profile/EditProfileSectionScreen';
 export { ProfileScreen } from './profile/ProfileScreen';
 export { TodayScreen } from './today/TodayScreen';
 export { AvailabilityStartScreen } from './availibility/AvailabilityStartScreen';
