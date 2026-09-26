@@ -178,7 +178,7 @@ export function RequestMeetScreen({ route, navigation }: Props): React.JSX.Eleme
           {days.some((date) => !isOpenOn(venue, date.getDay())) ? (
             <>
               <Spacer size={8} />
-              <AppText variant="caption" color="textDisabled">
+              <AppText variant="caption" color="textSecondary">
                 Greyed-out days are when {venue.name} is closed.
               </AppText>
             </>
@@ -236,7 +236,7 @@ export function RequestMeetScreen({ route, navigation }: Props): React.JSX.Eleme
           <AppText variant="body" color="textSecondary" style={{ marginTop: theme.spacing[4] }}>
             {`${formatDayAndDate(day)} at ${clock(startMinutes)} · ${DURATION_MINUTES} minutes`}
           </AppText>
-          <AppText variant="caption" color="textDisabled" style={{ marginTop: theme.spacing[8] }}>
+          <AppText variant="caption" color="textSecondary" style={{ marginTop: theme.spacing[8] }}>
             {personName} has to accept before the table is confirmed. Either of you can cancel.
           </AppText>
         </View>

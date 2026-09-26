@@ -23,11 +23,19 @@ import { AppError, type AppErrorOptions, type ErrorKind } from '@/domain/reposit
  *   42501     insufficient privilege — in practice, an RLS policy said no
  *   23505     unique violation
  *   23503     foreign key violation
+ *   PGRST106  the schema is not exposed (Dashboard → API → Exposed schemas)
+ *   PGRST205  the table or view is not in PostgREST's schema cache
+ *
+ * The last two mean the API surface is not wired up — a migration not applied,
+ * a schema not exposed, a cache not reloaded. They are 'server': not the
+ * member's fault, and a retry after the fix (or a cache reload) succeeds.
  */
 
 type SupabaseLikeError = {
   message?: string;
   code?: string;
+  details?: string | null;
+  hint?: string | null;
   status?: number;
   name?: string;
   /** AuthWeakPasswordError: why the password was refused. */
@@ -138,6 +146,52 @@ const AUTH_CODES: Record<string, Classified> = {
   },
 };
 
+/** What the dev-only reporter is given: the raw error, before it is replaced. */
+export type RawSupabaseError = {
+  kind: ErrorKind;
+  code?: string;
+  message?: string;
+  details?: string | null;
+  hint?: string | null;
+  status?: number;
+};
+
+let reportRaw: ((raw: RawSupabaseError) => void) | null = null;
+
+/**
+ * Development only: have every classified failure reported raw.
+ *
+ * Every error a member sees is one of the generic sentences below, with the
+ * database's own message kept only in `AppError.cause` — which is right in
+ * production, where that message names columns and constraints, and useless
+ * on a device when an unmapped code collapses to "Something went wrong".
+ *
+ * A setter rather than a check of `env` here, because this file is imported by
+ * `data/`, which also runs in the admin web app, and `@/shared/config` cannot
+ * be bundled there. The composition root turns it on behind the same flag as
+ * the demo sign-in, so a production build never reports anything. `null`
+ * turns it off.
+ */
+export function reportRawSupabaseErrors(reporter: ((raw: RawSupabaseError) => void) | null): void {
+  reportRaw = reporter;
+}
+
+function report(kind: ErrorKind, raw: SupabaseLikeError): void {
+  if (!reportRaw) return;
+  try {
+    reportRaw({
+      kind,
+      code: raw.code,
+      message: raw.message,
+      details: raw.details,
+      hint: raw.hint,
+      status: raw.status,
+    });
+  } catch {
+    // Logging must never be the reason error handling fails.
+  }
+}
+
 const KIND_BY_STATUS: Record<number, ErrorKind> = {
   400: 'validation',
   401: 'unauthenticated',
@@ -157,6 +211,8 @@ const KIND_BY_CODE: Record<string, ErrorKind> = {
   '42501': 'forbidden',
   '23505': 'validation',
   '23503': 'validation',
+  PGRST106: 'server',
+  PGRST205: 'server',
 };
 
 /** Messages safe to show a member. Anything else gets a generic line. */
@@ -168,7 +224,9 @@ const FRIENDLY: Record<ErrorKind, string> = {
   validation: 'Something about that is not right. Check it and try again.',
   server: 'Something went wrong at our end. Try again in a moment.',
   rateLimited: 'Too many attempts. Wait a moment and try again.',
-  unknown: 'Something went wrong. Try again.',
+  // No "try again": `unknown` is not retryable, so no Retry button is shown,
+  // and an instruction with nothing to tap is worse than none.
+  unknown: 'Something went wrong that we did not expect.',
 };
 
 /**
@@ -234,6 +292,7 @@ export function classifySupabaseError(error: unknown): AppError {
     (raw.name === 'AuthRetryableFetchError' && (raw.status === 0 || raw.status === undefined)) ||
     /network request failed|fetch failed|timeout/i.test(message)
   ) {
+    report('network', raw);
     return new AppError('network', FRIENDLY.network, { cause: error });
   }
 
@@ -260,6 +319,10 @@ export function classifySupabaseError(error: unknown): AppError {
   const byCode = raw.code ? KIND_BY_CODE[raw.code] : undefined;
   const byStatus = typeof raw.status === 'number' ? KIND_BY_STATUS[raw.status] : undefined;
   const kind: ErrorKind = byCode ?? byStatus ?? 'unknown';
+  // Auth failures return above without being reported here: the auth
+  // repository logs each one itself (code, status, name — and the message only
+  // for a 5xx, because a 4xx message can echo what the member typed).
+  report(kind, raw);
 
   if (kind === 'rateLimited') {
     return new AppError(kind, FRIENDLY.rateLimited, {

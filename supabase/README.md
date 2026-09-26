@@ -18,6 +18,9 @@ tests/_harness.sql       fakes the auth and storage schemas Supabase provides
 tests/assertions.sql     structural rules: RLS, grants, search_path, card data, indexes
 tests/behaviour.sql      78 checks, 28 of them policy tests run as a real member
 tests/replay.sh          applies everything from empty and runs both
+
+seed/photos/             placeholder portraits for the demo members
+seed/remove-demo-seed.sql  deletes every demo row in one statement
 ```
 
 ## Testing before pushing
@@ -119,6 +122,27 @@ rename a compile error instead of an `undefined` at runtime.
 
 The moment both `.env` values are present, the composition root wires the
 Supabase repositories instead of the in-memory ones. Nothing else changes.
+
+## Demo members
+
+A fresh project has nobody for Today to show. `scripts/seed-demo.mjs` creates
+eight verified members in the dev account's city, two per purpose, each with a
+photo in Storage, and puts four of them in the dev account's set for today (two
+have already liked it, so a match can be made):
+
+```bash
+SUPABASE_SERVICE_ROLE_KEY=… node scripts/seed-demo.mjs --member you@example.com           # dry run
+SUPABASE_SERVICE_ROLE_KEY=… node scripts/seed-demo.mjs --member you@example.com --apply
+```
+
+**Every seeded row has an id starting `5eed0000-`**, and so does every Storage
+path. Remove all of it before real members arrive, with either
+`node scripts/seed-demo.mjs --remove` (rows and files) or the one statement in
+`seed/remove-demo-seed.sql` (rows; the files then need deleting from the
+dashboard, because Storage objects cannot be deleted from SQL).
+
+The service role key goes on the command line for that one command, never in
+`.env` — the script refuses to run if it finds one there.
 
 ## Verify RLS actually works
 

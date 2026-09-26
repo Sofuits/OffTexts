@@ -404,7 +404,7 @@ export function SignInScreen(): React.JSX.Element {
         {env.enableGoogleAuth ? (
           <>
             <Spacer size={16} />
-            <AppText variant="caption" color="textDisabled" align="center">
+            <AppText variant="caption" color="textSecondary" align="center">
               or
             </AppText>
             <Spacer size={12} />
@@ -424,7 +424,7 @@ export function SignInScreen(): React.JSX.Element {
           <>
             <Spacer size={16} />
             <View style={[styles.divider]}>
-              <AppText variant="caption" color="textDisabled" align="center">
+              <AppText variant="caption" color="textSecondary" align="center">
                 development only
               </AppText>
             </View>
@@ -439,7 +439,7 @@ export function SignInScreen(): React.JSX.Element {
               testID="button-demo-sign-in"
             />
             <Spacer size={8} />
-            <AppText variant="caption" color="textDisabled" align="center">
+            <AppText variant="caption" color="textSecondary" align="center">
               Signs in as {env.demoEmail} against the real database. This button does not exist in a
               production build.
             </AppText>
@@ -486,7 +486,7 @@ export function SignInScreen(): React.JSX.Element {
         </View>
 
         <Spacer size={16} />
-        <AppText variant="caption" color="textDisabled" align="center">
+        <AppText variant="caption" color="textSecondary" align="center">
           By continuing you agree to our terms and privacy notice. You must be 18 or older.
         </AppText>
       </View>

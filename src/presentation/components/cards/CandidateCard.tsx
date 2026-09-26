@@ -70,9 +70,14 @@ export function CandidateCard({
         )}
 
         {/* A solid scrim rather than a gradient: there is no gradient library
-            in the app, and a flat band at 88% is legible over any photo without
-            one. */}
-        <View style={[styles.scrim, { padding: theme.spacing[16] }]}>
+            in the app, and a flat light band at 92% keeps ink text legible over
+            any photo without one. */}
+        <View
+          style={[
+            styles.scrim,
+            { padding: theme.spacing[16], backgroundColor: theme.colors.scrim },
+          ]}
+        >
           <View style={styles.nameRow}>
             <AppText variant="subheading" numberOfLines={1} style={styles.name}>
               {person.age ? `${person.name}, ${person.age}` : person.name}
@@ -165,7 +170,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(11, 23, 22, 0.88)',
   },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   name: { flexShrink: 1 },
